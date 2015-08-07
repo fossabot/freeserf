@@ -159,7 +159,8 @@ set(OTHER_SOURCES pathfinder.cc
                   version.cc
                   text-input.cc
                   list.cc
-                  command_line.cc)
+                  command_line.cc
+                  player_controller.cc)
 
 set(OTHER_HEADERS pathfinder.h
                   gfx.h
@@ -177,7 +178,8 @@ set(OTHER_HEADERS pathfinder.h
                   text-input.h
                   list.h
                   convertor.h
-                  command_line.h)
+                  command_line.h
+                  player_controller.h)
 
 set(FREESERF_SOURCES freeserf.cc ${OTHER_SOURCES})
 set(FREESERF_HEADERS freeserf.h ${OTHER_HEADERS})

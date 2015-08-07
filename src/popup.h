@@ -33,11 +33,16 @@ class Interface;
 class MinimapGame;
 class ListSavedFiles;
 class TextInput;
+class Game;
+typedef std::shared_ptr<Game> PGame;
+class PlayerController;
+typedef std::shared_ptr<PlayerController> PPlayerController;
 
 class PopupBox : public GuiObject {
  public:
   typedef enum Type {
-    TypeMap = 1,
+    TypeNone = 0,
+    TypeMap,
     TypeMapOverlay, /* UNUSED */
     TypeMineBuilding,
     TypeBasicBld,
@@ -144,6 +149,8 @@ class PopupBox : public GuiObject {
   std::unique_ptr<MinimapGame> minimap;
   std::unique_ptr<ListSavedFiles> file_list;
   std::unique_ptr<TextInput> file_field;
+  PGame game;
+  PPlayerController player_controller;
 
   Type box;
 
@@ -152,8 +159,11 @@ class PopupBox : public GuiObject {
   int current_stat_7_item;
   int current_stat_8_mode;
 
+  bool in_quit_confirm;
+
  public:
-  explicit PopupBox(Interface *interface);
+  PopupBox(Interface *interface, PGame game,
+           PPlayerController player_controller);
   virtual ~PopupBox();
 
   Type get_box() const { return box; }
@@ -284,6 +294,8 @@ class PopupBox : public GuiObject {
 
   virtual void internal_draw();
   virtual bool handle_click_left(int x, int y);
+
+  bool build_building(int type);
 };
 
 #endif  // SRC_POPUP_H_

@@ -1265,6 +1265,10 @@ Game::can_build_large(MapPos pos) const {
 /* Checks whether a castle can be built by player at position. */
 bool
 Game::can_build_castle(MapPos pos, const Player *player) const {
+  if (player == NULL) {
+    return false;
+  }
+
   if (player->has_castle()) return false;
 
   /* Check owner of land around position */
@@ -1302,6 +1306,10 @@ Game::can_build_castle(MapPos pos, const Player *player) const {
    demolished. */
 bool
 Game::can_player_build(MapPos pos, const Player *player) const {
+  if (player == NULL) {
+    return false;
+  }
+
   if (!player->has_castle()) return false;
 
   /* Check owner of land around position */
@@ -2220,13 +2228,13 @@ Game::building_captured(Building *building) {
   /* Create notfications for lost land and buildings */
   for (Player *player : players) {
     if (buildings_before[player->get_index()] > player->get_building_score()) {
-      player->add_notification(Message::TypeLostBuildings,
-                               building->get_position(),
-                               building->get_owner());
+      player->fire_event(Player::Event::TypeLostBuildings,
+                         building->get_position(),
+                         building->get_owner());
     } else if (land_before[player->get_index()] > player->get_land_area()) {
-      player->add_notification(Message::TypeLostLand,
-                               building->get_position(),
-                               building->get_owner());
+      player->fire_event(Player::Event::TypeLostLand,
+                         building->get_position(),
+                         building->get_owner());
     }
   }
 }

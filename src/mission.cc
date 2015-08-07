@@ -60,7 +60,7 @@ Character characters[] = {
     "Your partner."}
 };
 
-Player::Color def_color[4] = {
+PlayerInfo::Color def_color[4] = {
   {0x00, 0xe3, 0xe3},
   {0xcf, 0x63, 0x63},
   {0xdf, 0x7f, 0xef},
@@ -437,7 +437,7 @@ GameInfo::add_player(const PPlayerInfo &player) {
 }
 
 void
-GameInfo::add_player(size_t character, const Player::Color &_color,
+GameInfo::add_player(size_t character, const PlayerInfo::Color &_color,
                      unsigned int _intelligence, unsigned int _supplies,
                      unsigned int _reproduction) {
   PPlayerInfo player(new PlayerInfo(character, _color, _intelligence, _supplies,
@@ -500,7 +500,6 @@ GameInfo::instantiate() {
                                           player_info->get_supplies(),
                                           player_info->get_reproduction());
     Player *player = game->get_player(index);
-    player->init_view(player_info->get_color(), player_info->get_face());
 
     PlayerInfo::Pos castle_pos = player_info->get_castle_pos();
     if (castle_pos.col > -1 && castle_pos.row > -1) {
@@ -521,7 +520,7 @@ PlayerInfo::PlayerInfo(Random *random_base) {
   set_castle_pos({-1, -1});
 }
 
-PlayerInfo::PlayerInfo(size_t character, const Player::Color &_color,
+PlayerInfo::PlayerInfo(size_t character, const PlayerInfo::Color &_color,
                        unsigned int _intelligence, unsigned int _supplies,
                        unsigned int _reproduction) {
   set_character(character);
