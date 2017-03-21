@@ -1,7 +1,7 @@
 /*
  * gui.h - Base functions for the GUI hierarchy
  *
- * Copyright (C) 2012  Jon Lund Steffensen <jonlst@gmail.com>
+ * Copyright (C) 2012-2017  Jon Lund Steffensen <jonlst@gmail.com>
  *
  * This file is part of freeserf.
  *
@@ -23,13 +23,15 @@
 #define SRC_GUI_H_
 
 #include <list>
+#include <memory>
 
 #include "src/gfx.h"
 #include "src/event_loop.h"
 
-class GuiObject : public EventLoop::Handler {
+class GuiObject : public EventLoop::Handler,
+                  public std::enable_shared_from_this<GuiObject> {
  private:
-  typedef std::list<GuiObject*> FloatList;
+  typedef std::list<std::shared_ptr<GuiObject>> FloatList;
   FloatList floats;
 
  protected:
@@ -38,11 +40,13 @@ class GuiObject : public EventLoop::Handler {
   bool displayed;
   bool enabled;
   bool redraw;
-  GuiObject *parent;
+  std::weak_ptr<GuiObject> parent;
   Frame *frame;
   static GuiObject *focused_object;
   bool focused;
+  bool initialized;
 
+  virtual void init() {}
   virtual void internal_draw() = 0;
   virtual void layout();
 
@@ -68,12 +72,12 @@ class GuiObject : public EventLoop::Handler {
   void set_enabled(bool enabled);
   void set_redraw();
   bool is_displayed() { return displayed; }
-  GuiObject *get_parent() { return parent; }
-  void set_parent(GuiObject *parent) { this->parent = parent; }
+  std::shared_ptr<GuiObject> get_parent() { return parent.lock(); }
+  void set_parent(std::shared_ptr<GuiObject> _parent) { parent = _parent; }
   bool point_inside(int point_x, int point_y);
 
-  void add_float(GuiObject *obj, int x, int y);
-  void del_float(GuiObject *obj);
+  void add_float(std::shared_ptr<GuiObject> obj, int x, int y);
+  void del_float(std::shared_ptr<GuiObject> obj);
 
   void set_focused();
 

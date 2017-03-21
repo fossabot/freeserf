@@ -1,7 +1,7 @@
 /*
  * gui.cc - Base functions for the GUI hierarchy
  *
- * Copyright (C) 2013-2018  Jon Lund Steffensen <jonlst@gmail.com>
+ * Copyright (C) 2013-2019  Jon Lund Steffensen <jonlst@gmail.com>
  *
  * This file is part of freeserf.
  *
@@ -22,6 +22,7 @@
 #include "src/gui.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "src/misc.h"
 #include "src/audio.h"
@@ -46,9 +47,9 @@ GuiObject::GuiObject() {
   displayed = false;
   enabled = true;
   redraw = true;
-  parent = nullptr;
   frame = nullptr;
   focused = false;
+  initialized = false;
 }
 
 GuiObject::~GuiObject() {
@@ -76,10 +77,15 @@ GuiObject::draw(Frame *_frame) {
     frame = Graphics::get_instance().create_frame(width, height);
   }
 
+  if (!initialized) {
+    init();
+    initialized = true;
+  }
+
   if (redraw) {
     internal_draw();
 
-    for (GuiObject *float_window : floats) {
+    for (std::shared_ptr<GuiObject> float_window : floats) {
       float_window->draw(frame);
     }
 
@@ -206,8 +212,8 @@ GuiObject::get_size(int *pwidth, int *pheight) {
 }
 
 void
-GuiObject::set_displayed(bool displayed) {
-  this->displayed = displayed;
+GuiObject::set_displayed(bool _displayed) {
+  displayed = _displayed;
   set_redraw();
 }
 
@@ -219,8 +225,8 @@ GuiObject::set_enabled(bool enabled) {
 void
 GuiObject::set_redraw() {
   redraw = true;
-  if (parent != nullptr) {
-    parent->set_redraw();
+  if (parent.lock()) {
+    parent.lock()->set_redraw();
   }
 }
 
@@ -231,15 +237,15 @@ GuiObject::point_inside(int point_x, int point_y) {
 }
 
 void
-GuiObject::add_float(GuiObject *obj, int fx, int fy) {
-  obj->set_parent(this);
+GuiObject::add_float(std::shared_ptr<GuiObject> obj, int fx, int fy) {
+  obj->set_parent(shared_from_this());
   floats.push_back(obj);
   obj->move_to(fx, fy);
   set_redraw();
 }
 
 void
-GuiObject::del_float(GuiObject *obj) {
+GuiObject::del_float(std::shared_ptr<GuiObject> obj) {
   obj->set_parent(nullptr);
   floats.remove(obj);
   set_redraw();

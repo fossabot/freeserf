@@ -1,7 +1,7 @@
 /*
  * interface.cc - Top-level GUI interface
  *
- * Copyright (C) 2013-2018  Jon Lund Steffensen <jonlst@gmail.com>
+ * Copyright (C) 2013-2019  Jon Lund Steffensen <jonlst@gmail.com>
  *
  * This file is part of freeserf.
  *
@@ -24,6 +24,7 @@
 #include <iostream>
 #include <fstream>
 #include <utility>
+#include <memory>
 
 #include "src/misc.h"
 #include "src/debug.h"
@@ -37,84 +38,20 @@
 #include "src/notification.h"
 #include "src/panel.h"
 #include "src/savegame.h"
+#include "src/game.h"
 
 // Interval between automatic save games
 #define AUTOSAVE_INTERVAL  (10*60*TICKS_PER_SEC)
-
-Interface::Interface() {
-  displayed = true;
-
-  game = nullptr;
-
-  map_cursor_pos = 0;
-  map_cursor_type = (CursorType)0;
-  build_possibility = BuildPossibilityNone;
-
-  player = nullptr;
-
-  /* Settings */
-  config = 0x39;
-  msg_flags = 0;
-  return_timeout = 0;
-
-  current_stat_8_mode = 0;
-  current_stat_7_item = 7;
-
-  map_cursor_sprites[0].sprite = 32;
-  map_cursor_sprites[1].sprite = 33;
-  map_cursor_sprites[2].sprite = 33;
-  map_cursor_sprites[3].sprite = 33;
-  map_cursor_sprites[4].sprite = 33;
-  map_cursor_sprites[5].sprite = 33;
-  map_cursor_sprites[6].sprite = 33;
-
-  last_const_tick = 0;
-
-  viewport = nullptr;
-  panel = nullptr;
-  popup = nullptr;
-  init_box = nullptr;
-  notification_box = nullptr;
-
-  GameManager::get_instance().add_handler(this);
-  set_game(GameManager::get_instance().get_current_game());
-}
-
-Interface::~Interface() {
-  GameManager::get_instance().del_handler(this);
-  set_game(nullptr);
-
-  delete viewport;
-  delete panel;
-  delete popup;
-  delete init_box;
-  delete notification_box;
-}
-
-Viewport *
-Interface::get_viewport() {
-  return viewport;
-}
-
-PanelBar *
-Interface::get_panel_bar() {
-  return panel;
-}
-
-PopupBox *
-Interface::get_popup_box() {
-  return popup;
-}
 
 /* Open popup box */
 void
 Interface::open_popup(int box) {
   if (popup == nullptr) {
-    popup = new PopupBox(this);
+    popup = std::make_shared<PopupBox>(this);
     add_float(popup, 0, 0);
+    popup->show((PopupBox::Type)box);
   }
   layout();
-  popup->show((PopupBox::Type)box);
   if (panel != nullptr) {
     panel->update();
   }
@@ -128,7 +65,6 @@ Interface::close_popup() {
   }
   popup->hide();
   del_float(popup);
-  delete popup;
   popup = nullptr;
   update_map_cursor_pos(map_cursor_pos);
   if (panel != nullptr) {
@@ -140,7 +76,7 @@ Interface::close_popup() {
 void
 Interface::open_game_init() {
   if (init_box == nullptr) {
-    init_box = new GameInitBox(this);
+    init_box = std::make_shared<GameInitBox>(this);
     add_float(init_box, 0, 0);
   }
   init_box->set_displayed(true);
@@ -157,7 +93,6 @@ Interface::close_game_init() {
   if (init_box != nullptr) {
     init_box->set_displayed(false);
     del_float(init_box);
-    delete init_box;
     init_box = nullptr;
   }
   if (panel != nullptr) {
@@ -190,7 +125,7 @@ Interface::open_message() {
   }
 
   if (notification_box == nullptr) {
-    notification_box = new NotificationBox(this);
+    notification_box = std::make_shared<NotificationBox>(this);
     add_float(notification_box, 0, 0);
   }
   notification_box->show(message);
@@ -231,7 +166,6 @@ Interface::close_message() {
 
   notification_box->set_displayed(false);
   del_float(notification_box);
-  delete notification_box;
   notification_box = nullptr;
   layout();
 }
@@ -433,14 +367,13 @@ void
 Interface::set_game(PGame new_game) {
   if (viewport != nullptr) {
     del_float(viewport);
-    delete viewport;
     viewport = nullptr;
   }
 
   game = std::move(new_game);
 
   if (game) {
-    viewport = new Viewport(this, game->get_map());
+    viewport = std::make_shared<Viewport>(this, game->get_map());
     viewport->set_displayed(true);
     add_float(viewport, 0, 0);
   }
@@ -452,13 +385,12 @@ Interface::set_game(PGame new_game) {
 
 void
 Interface::set_player(unsigned int player_index) {
-  if (panel != nullptr) {
+  if (panel) {
     del_float(panel);
-    delete panel;
     panel = nullptr;
   }
 
-  if (game == nullptr) {
+  if (!game) {
     return;
   }
 
@@ -471,8 +403,8 @@ Interface::set_player(unsigned int player_index) {
   /* Move viewport to initial position */
   MapPos init_pos = game->get_map()->pos(0, 0);
 
-  if (player != NULL) {
-    panel = new PanelBar(this);
+  if (player != nullptr) {
+    panel = std::make_shared<PanelBar>(this);
     panel->set_displayed(true);
     add_float(panel, 0, 0);
     layout();
@@ -663,7 +595,6 @@ Interface::build_building(Building::Type type) {
   }
 
   play_sound(Audio::TypeSfxAccepted);
-  close_popup();
 
   /* Move cursor to flag. */
   MapPos flag_pos = game->get_map()->move_down_right(map_cursor_pos);
@@ -750,6 +681,35 @@ Interface::layout() {
   }
 
   set_redraw();
+}
+
+Interface::Interface() {
+  displayed = true;
+
+  map_cursor_pos = 0;
+  map_cursor_type = (CursorType)0;
+  build_possibility = BuildPossibilityNone;
+
+  /* Settings */
+  config = 0x39;
+  msg_flags = 0;
+  return_timeout = 0;
+
+  current_stat_8_mode = 0;
+  current_stat_7_item = 7;
+
+  map_cursor_sprites[0].sprite = 32;
+  map_cursor_sprites[1].sprite = 33;
+  map_cursor_sprites[2].sprite = 33;
+  map_cursor_sprites[3].sprite = 33;
+  map_cursor_sprites[4].sprite = 33;
+  map_cursor_sprites[5].sprite = 33;
+  map_cursor_sprites[6].sprite = 33;
+
+  last_const_tick = 0;
+}
+
+Interface::~Interface() {
 }
 
 /* Called periodically when the game progresses. */
