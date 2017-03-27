@@ -42,8 +42,6 @@ class GuiObject : public EventLoop::Handler,
   bool redraw;
   std::weak_ptr<GuiObject> parent;
   Frame *frame;
-  static GuiObject *focused_object;
-  bool focused;
   bool initialized;
 
   virtual void init() {}
@@ -55,7 +53,6 @@ class GuiObject : public EventLoop::Handler,
     return false; }
   virtual bool handle_drag(int dx, int dy) { return true; }
   virtual bool handle_key_pressed(char key, int modifier) { return false; }
-  virtual bool handle_focus_loose() { return false; }
 
   void delete_frame();
 
@@ -78,8 +75,6 @@ class GuiObject : public EventLoop::Handler,
 
   void add_float(std::shared_ptr<GuiObject> obj, int x, int y);
   void del_float(std::shared_ptr<GuiObject> obj);
-
-  void set_focused();
 
   virtual bool handle_event(const Event *event);
 

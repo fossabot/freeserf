@@ -141,9 +141,9 @@ class PopupBox : public GuiObject {
 
  protected:
   Interface *interface;
-  std::shared_ptr<MinimapGame> minimap;
-  std::shared_ptr<ListSavedFiles> file_list;
-  std::shared_ptr<TextInput> file_field;
+//  std::shared_ptr<MinimapGame> minimap;
+//  std::shared_ptr<ListSavedFiles> file_list;
+//  std::shared_ptr<TextInput> file_field;
 
   Type box;
 
@@ -157,7 +157,6 @@ class PopupBox : public GuiObject {
   virtual ~PopupBox();
 
   Type get_box() const { return box; }
-  MinimapGame *get_minimap() { return minimap.get(); }
 
   void show(Type box);
   void hide();
