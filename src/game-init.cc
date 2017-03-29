@@ -236,7 +236,7 @@ GameInitBox::create_layout_custom() {
       delete old_game;
     }
     this->interface->set_player(0);
-    this->interface->close_game_init();
+    this->close();
   });
 
   // Game type button
@@ -313,7 +313,7 @@ GameInitBox::create_layout_custom() {
 
   // Exit button
   layout_custom->make_item<Button>(304, 208, 16, 16, 60, [this](int x, int y) {
-    this->interface->close_game_init();
+    this->close();
   });
 
   return layout_custom;
@@ -341,7 +341,7 @@ GameInitBox::create_layout_mission() {
       delete old_game;
     }
     this->interface->set_player(0);
-    this->interface->close_game_init();
+    this->close();
   });
 
   // Game type button
@@ -400,7 +400,7 @@ GameInitBox::create_layout_mission() {
 
   // Exit button
   layout_mission->make_item<Button>(304, 208, 16, 16, 60, [this](int x, int y) {
-    this->interface->close_game_init();
+    this->close();
   });
 
   return layout_mission;
@@ -429,7 +429,7 @@ GameInitBox::create_layout_load() {
       delete old_game;
     }
     this->interface->set_player(0);
-    this->interface->close_game_init();
+    this->close();
   });
 
   // Game type button
@@ -461,7 +461,7 @@ GameInitBox::create_layout_load() {
 
   // Exit button
   layout_load->make_item<Button>(304, 208, 16, 16, 60, [this](int x, int y) {
-    this->interface->close_game_init();
+    this->close();
   });
 
   return layout_load;

@@ -62,6 +62,15 @@ GuiObject::delete_frame() {
 }
 
 void
+GuiObject::close_float(std::shared_ptr<GuiObject> obj) {
+  EventLoop &event_loop = EventLoop::get_instance();
+  event_loop.deferred_call([this, obj](this){
+    floats.remove(obj);
+    on_float_closed(obj);
+  }, nullptr);
+}
+
+void
 GuiObject::draw(Frame *_frame) {
   if (!displayed) {
     return;
@@ -220,6 +229,13 @@ GuiObject::del_float(std::shared_ptr<GuiObject> obj) {
   obj->set_parent(nullptr);
   floats.remove(obj);
   set_redraw();
+}
+
+void
+GuiObject::close() {
+  if (parent.lock()) {
+    parent.lock()->close_float(shared_from_this());
+  }
 }
 
 void

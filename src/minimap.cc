@@ -503,7 +503,9 @@ MinimapGame::handle_click_left(int cx, int cy) {
   interface->get_viewport()->move_to_map_pos(pos);
 
   interface->update_map_cursor_pos(pos);
-  interface->close_popup();
+  if (parent.lock()) {
+    parent.lock()->close();
+  }
 
   return true;
 }

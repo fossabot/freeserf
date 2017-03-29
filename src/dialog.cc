@@ -79,6 +79,33 @@ Button::handle_click_left(int x, int y) {
   return true;
 }
 
+// ButtonText
+
+ButtonText::ButtonText(unsigned int _width, unsigned int _height,
+                       const std::string &_text,
+                       std::function<void(int x, int y)> _handler)
+: Control(_width, _height) {
+  text = _text;
+  handler = _handler;
+  delegate = nullptr;
+}
+
+void
+ButtonText::draw(Frame *frame, unsigned int x, unsigned int y) {
+  if (delegate) {
+    text = delegate();
+  }
+
+  frame->draw_string(x, y, text, Color::green, Color::black);
+}
+
+bool
+ButtonText::handle_click_left(int x, int y) {
+  own_focus();
+  handler(x, y);
+  return true;
+}
+
 // Label
 
 Label::Label(unsigned int _width, unsigned int _height,
@@ -87,6 +114,14 @@ Label::Label(unsigned int _width, unsigned int _height,
   text = _text;
   text_color = Color::green;
   delegate = nullptr;
+  sprite = std::numeric_limits<unsigned int>::max();
+}
+
+Label::Label(unsigned int _width, unsigned int _height, unsigned int _sprite)
+  : Control(_width, _height){
+  text_color = Color::green;
+  delegate = nullptr;
+  sprite = _sprite;
 }
 
 Label::Label(unsigned int _width, unsigned int _height,
@@ -95,6 +130,7 @@ Label::Label(unsigned int _width, unsigned int _height,
   text = std::string();
   text_color = Color::green;
   delegate = _delegate;
+  sprite = std::numeric_limits<unsigned int>::max();
 }
 
 void
@@ -104,8 +140,15 @@ Label::set_text(const std::string &_text) {
 }
 
 void
+Label::set_icon(unsigned int _sprite) {
+  sprite = _sprite;
+  invalidate();
+}
+
+void
 Label::set_color(const Color &color) {
   text_color = color;
+  invalidate();
 }
 
 void
@@ -113,7 +156,14 @@ Label::draw(Frame *frame, unsigned int x, unsigned int y) {
   if (delegate != nullptr) {
     text = delegate();
   }
-  frame->draw_string(x, y, text, text_color, Color::black);
+  int cx = x;
+  int cy = y;
+  if (sprite != std::numeric_limits<unsigned int>::max()) {
+    frame->draw_sprite(cx, cy, Data::AssetIcon, sprite);
+    cx += 16;
+    cy += 4;
+  }
+  frame->draw_string(cx, cy, text, text_color, Color::black);
 }
 
 // Layout

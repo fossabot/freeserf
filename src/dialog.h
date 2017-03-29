@@ -82,18 +82,43 @@ class Button : public Control {
 
 typedef std::shared_ptr<Button> PButton;
 
+class ButtonText : public Control {
+protected:
+  std::string text;
+  std::function<void(int x, int y)> handler;
+  std::function<std::string()> delegate;
+
+public:
+  ButtonText(unsigned int _width, unsigned int _height,
+             const std::string &_text,
+             std::function<void(int x, int y)> _handler);
+
+  void set_delegate(std::function<std::string()> _delegate) {
+    delegate = _delegate;
+  }
+
+public:
+  virtual void draw(Frame *frame, unsigned int x, unsigned int y);
+  virtual bool handle_click_left(int x, int y);
+};
+
+typedef std::shared_ptr<ButtonText> PButtonText;
+
 class Label : public Control {
  protected:
   std::string text;
   Color text_color;
   std::function<std::string()> delegate;
+  unsigned int sprite;
 
  public:
   Label(unsigned int _width, unsigned int _height, const std::string &_text);
+  Label(unsigned int _width, unsigned int _height, unsigned int sprite);
   Label(unsigned int _width, unsigned int _height,
         std::function<std::string()> _delegate);
 
   void set_text(const std::string &_text);
+  void set_icon(unsigned int sprite);
   void set_color(const Color &color);
 
  public:
@@ -176,5 +201,7 @@ class Dialog : public GuiObject {
 
   virtual void draw_background();
 };
+
+typedef std::shared_ptr<Dialog> PDialog;
 
 #endif  // SRC_DIALOG_H_

@@ -53,8 +53,11 @@ class GuiObject : public EventLoop::Handler,
     return false; }
   virtual bool handle_drag(int dx, int dy) { return true; }
   virtual bool handle_key_pressed(char key, int modifier) { return false; }
+  virtual void on_float_closed(std::shared_ptr<GuiObject> obj) {}
 
   void delete_frame();
+
+  void close_float(std::shared_ptr<GuiObject> obj);
 
  public:
   GuiObject();
@@ -75,6 +78,7 @@ class GuiObject : public EventLoop::Handler,
 
   void add_float(std::shared_ptr<GuiObject> obj, int x, int y);
   void del_float(std::shared_ptr<GuiObject> obj);
+  void close();
 
   virtual bool handle_event(const Event *event);
 

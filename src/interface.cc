@@ -39,34 +39,79 @@
 #include "src/panel.h"
 #include "src/savegame.h"
 #include "src/game.h"
+#include "src/dialog-build.h"
+#include "src/dialog-map.h"
+#include "src/dialog-ground-analysis.h"
+#include "src/dialog-quit-confirm.h"
 
 // Interval between automatic save games
 #define AUTOSAVE_INTERVAL  (10*60*TICKS_PER_SEC)
 
+Interface::Interface() {
+  displayed = true;
+
+  map_cursor_pos = 0;
+  map_cursor_type = (CursorType)0;
+  build_possibility = BuildPossibilityNone;
+
+  /* Settings */
+  config = 0x39;
+  msg_flags = 0;
+  return_timeout = 0;
+
+  current_stat_8_mode = 0;
+  current_stat_7_item = 7;
+
+  map_cursor_sprites[0].sprite = 32;
+  map_cursor_sprites[1].sprite = 33;
+  map_cursor_sprites[2].sprite = 33;
+  map_cursor_sprites[3].sprite = 33;
+  map_cursor_sprites[4].sprite = 33;
+  map_cursor_sprites[5].sprite = 33;
+  map_cursor_sprites[6].sprite = 33;
+
+  last_const_tick = 0;
+
+  GameManager::get_instance().add_handler(this);
+  set_game(GameManager::get_instance().get_current_game());
+}
+
+Interface::~Interface() {
+  GameManager::get_instance().del_handler(this);
+  set_game(nullptr);
+}
+
 /* Open popup box */
 void
 Interface::open_popup(int box) {
+  if (dialog) {
+    dialog->close();
+    dialog = nullptr;
+  }
+
   if (popup == nullptr) {
-    popup = std::make_shared<PopupBox>(this);
-    add_float(popup, 0, 0);
-    popup->show((PopupBox::Type)box);
+    if (box > 2 && box < 8) {
+      dialog = std::make_shared<DialogBuild>(this);
+      add_float(dialog, 0, 0);
+      dialog->set_displayed(true);
+      dialog->set_enabled(true);
+    } else if (box == PopupBox::TypeMap) {
+      dialog = std::make_shared<DialogMap>(this);
+      add_float(dialog, 0, 0);
+      dialog->set_displayed(true);
+      dialog->set_enabled(true);
+    } else if (box == PopupBox::TypeGroundAnalysis) {
+      dialog = std::make_shared<DialogGroundAnalysis>(this);
+      add_float(dialog, 0, 0);
+      dialog->set_displayed(true);
+      dialog->set_enabled(true);
+    } else {
+      popup = std::make_shared<PopupBox>(this);
+      add_float(popup, 0, 0);
+      popup->show((PopupBox::Type)box);
+    }
   }
   layout();
-  if (panel != nullptr) {
-    panel->update();
-  }
-}
-
-/* Close the current popup. */
-void
-Interface::close_popup() {
-  if (popup == nullptr) {
-    return;
-  }
-  popup->hide();
-  del_float(popup);
-  popup = nullptr;
-  update_map_cursor_pos(map_cursor_pos);
   if (panel != nullptr) {
     panel->update();
   }
@@ -86,23 +131,6 @@ Interface::open_game_init() {
   }
   viewport->set_enabled(false);
   layout();
-}
-
-void
-Interface::close_game_init() {
-  if (init_box != nullptr) {
-    init_box->set_displayed(false);
-    del_float(init_box);
-    init_box = nullptr;
-  }
-  if (panel != nullptr) {
-    panel->set_displayed(true);
-    panel->set_enabled(true);
-  }
-  viewport->set_enabled(true);
-  layout();
-
-  update_map_cursor_pos(map_cursor_pos);
 }
 
 /* Open box for next message in the message queue */
@@ -151,8 +179,8 @@ Interface::return_from_message() {
     return_timeout = 0;
     viewport->move_to_map_pos(return_pos);
 
-    if ((popup != nullptr) && (popup->get_box() == PopupBox::TypeMessage)) {
-      close_popup();
+    if (popup && (popup->get_box() == PopupBox::TypeMessage)) {
+      popup->close();
     }
     play_sound(Audio::TypeSfxClick);
   }
@@ -683,35 +711,6 @@ Interface::layout() {
   set_redraw();
 }
 
-Interface::Interface() {
-  displayed = true;
-
-  map_cursor_pos = 0;
-  map_cursor_type = (CursorType)0;
-  build_possibility = BuildPossibilityNone;
-
-  /* Settings */
-  config = 0x39;
-  msg_flags = 0;
-  return_timeout = 0;
-
-  current_stat_8_mode = 0;
-  current_stat_7_item = 7;
-
-  map_cursor_sprites[0].sprite = 32;
-  map_cursor_sprites[1].sprite = 33;
-  map_cursor_sprites[2].sprite = 33;
-  map_cursor_sprites[3].sprite = 33;
-  map_cursor_sprites[4].sprite = 33;
-  map_cursor_sprites[5].sprite = 33;
-  map_cursor_sprites[6].sprite = 33;
-
-  last_const_tick = 0;
-}
-
-Interface::~Interface() {
-}
-
 /* Called periodically when the game progresses. */
 void
 Interface::update() {
@@ -783,10 +782,10 @@ Interface::handle_key_pressed(char key, int modifier) {
       break;
     }
     case 27: {
-      if ((notification_box != nullptr) && notification_box->is_displayed()) {
+      if (notification_box) {
         close_message();
-      } else if ((popup != nullptr) && popup->is_displayed()) {
-        close_popup();
+      } else if (popup) {
+        popup->close();
       } else if (building_road.is_valid()) {
         build_road_end();
       }
@@ -858,7 +857,10 @@ Interface::handle_key_pressed(char key, int modifier) {
       break;
     case 'c':
       if (modifier & 1) {
-        open_popup(PopupBox::TypeQuitConfirm);
+        PDialog dialog = std::make_shared<DialogQuitConfirm>(this);
+        add_float(dialog, 0, 0);
+        dialog->set_enabled(true);
+        dialog->set_displayed(true);
       }
       break;
 
