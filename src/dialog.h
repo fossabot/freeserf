@@ -42,6 +42,7 @@ class Control : public std::enable_shared_from_this<Control> {
 
  public:
   Control(unsigned int _width, unsigned int _height);
+  virtual ~Control() {}
 
   unsigned int get_width() { return width; }
   unsigned int get_height() { return height; }

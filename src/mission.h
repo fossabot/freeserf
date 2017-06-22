@@ -38,8 +38,8 @@ typedef struct PlayerColor {
 
 typedef struct CharacterPreset {
   unsigned int face;
-  const std::string name;
-  const std::string characterization;
+  const char *name;
+  const char *characterization;
 } CharacterPreset;
 
 typedef struct PosPreset {
