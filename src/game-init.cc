@@ -220,26 +220,8 @@ GameInitBox::create_layout_custom() {
   layout_custom->set_indents(20, 16);
   // Start button
   layout_custom->make_item<Button>(0, 0, 32, 32, 266, [this](int x, int y) {
-/*
-    GameManager *game_manager = GameManager::get_instance();
-    game_manager->start_game(this->mission);
-    Game *game = new Game();
-    if (!game->load_mission_map(this->mission)) {
-      return;
-    }
-
-    Game *old_game = this->interface->get_game();
-    if (old_game != nullptr) {
-      EventLoop::get_instance()->del_handler(old_game);
-    }
-
-    EventLoop::get_instance()->add_handler(game);
-    this->interface->set_game(game);
-    if (old_game != nullptr) {
-      delete old_game;
-    }
-    this->interface->set_player(0);
- */
+    GameManager &game_manager = GameManager::get_instance();
+    game_manager.start_game(this->mission);
     this->close();
   });
 
@@ -329,24 +311,8 @@ GameInitBox::create_layout_mission() {
   layout_mission->set_indents(20, 16);
   // Start button
   layout_mission->make_item<Button>(0, 0, 32, 32, 266, [this](int x, int y) {
-/*
-    Game *game = new Game();
-    if (!game->load_mission_map(this->mission)) {
-      return;
-    }
-
-    Game *old_game = this->interface->get_game();
-    if (old_game != nullptr) {
-      EventLoop::get_instance()->del_handler(old_game);
-    }
-
-    EventLoop::get_instance()->add_handler(game);
-    this->interface->set_game(game);
-    if (old_game != nullptr) {
-      delete old_game;
-    }
-    this->interface->set_player(0);
-*/
+    GameManager &game_manager = GameManager::get_instance();
+    game_manager.start_game(this->mission);
     this->close();
   });
 

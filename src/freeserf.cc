@@ -106,18 +106,6 @@ main(int argc, char *argv[]) {
 
   GameManager &game_manager = GameManager::get_instance();
 
-  /* Either load a save game if specified or
-     start a new game. */
-  if (!save_file.empty()) {
-    if (!game_manager.load_game(save_file)) {
-      return EXIT_FAILURE;
-    }
-  } else {
-    if (!game_manager.start_random_game()) {
-      return EXIT_FAILURE;
-    }
-  }
-
   /* Initialize interface */
   Interface interface;
   if ((screen_width == 0) || (screen_height == 0)) {
@@ -126,8 +114,17 @@ main(int argc, char *argv[]) {
   interface.set_size(screen_width, screen_height);
   interface.set_displayed(true);
 
+  /* Either load a save game if specified or
+     start a new game. */
   if (save_file.empty()) {
+    if (!game_manager.start_random_game()) {
+      return EXIT_FAILURE;
+    }
     interface.open_game_init();
+  } else {
+    if (!game_manager.load_game(save_file)) {
+      return EXIT_FAILURE;
+    }
   }
 
   /* Init game loop */
