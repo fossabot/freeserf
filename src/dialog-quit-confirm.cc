@@ -53,7 +53,7 @@ DialogQuitConfirm::create_layout_first() {
   layout->add_item(0, 50, std::make_shared<ButtonText>(24, 10, "Yes",
                                                        [this](int x, int y){
     play_sound(Audio::TypeSfxAhhh);
-    EventLoop::get_instance()->quit();
+    EventLoop::get_instance().quit();
   }));
   layout->add_item(80, 50, std::make_shared<ButtonText>(16, 10, "No",
                                                         [this](int x, int y){
@@ -81,7 +81,7 @@ DialogQuitConfirm::create_layout_second() {
   layout->add_item(16, 110, std::make_shared<ButtonText>(24, 10, "Yes",
                                                          [this](int x, int y){
     play_sound(Audio::TypeSfxAhhh);
-    EventLoop::get_instance()->quit();
+    EventLoop::get_instance().quit();
   }));
   layout->add_item(96, 110, std::make_shared<ButtonText>(16, 10, "No",
                                                          [this](int x, int y){

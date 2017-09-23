@@ -359,7 +359,7 @@ Minimap::move_by_pixels(int dx, int dy) {
 }
 
 MinimapGame::MinimapGame(unsigned int _width, unsigned int _height,
-                         Interface *_interface, Game *_game)
+                         Interface *_interface, PGame _game)
   : Minimap(_width, _height, _game->get_map()) {
   interface = _interface;
   draw_roads = false;

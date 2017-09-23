@@ -2824,8 +2824,8 @@ PopupBox::handle_action(int action, int x_, int /*y_*/) {
     }
     std::string file_path = file_list->get_folder_path() + "/" + file_name;
     if (GameStore::get_instance().save(file_path,
-                                       interface->get_game().get())) {
-      interface->close_popup();
+                                                 interface->get_game().get())) {
+      close();
     }
     break;
   }

@@ -220,6 +220,9 @@ GameInitBox::create_layout_custom() {
   layout_custom->set_indents(20, 16);
   // Start button
   layout_custom->make_item<Button>(0, 0, 32, 32, 266, [this](int x, int y) {
+/*
+    GameManager *game_manager = GameManager::get_instance();
+    game_manager->start_game(this->mission);
     Game *game = new Game();
     if (!game->load_mission_map(this->mission)) {
       return;
@@ -236,6 +239,7 @@ GameInitBox::create_layout_custom() {
       delete old_game;
     }
     this->interface->set_player(0);
+ */
     this->close();
   });
 
@@ -286,7 +290,7 @@ GameInitBox::create_layout_custom() {
   layout_custom->add_item(248, 0, rnd_field);
 
   // Options button
-  layout_custom->make_item<Button>(288, 0, 32, 32, 267, [this](int x, int y) {
+  layout_custom->make_item<Button>(288, 0, 32, 32, 267, [](int x, int y) {
   });
 
   unsigned int x = 0;
@@ -325,6 +329,7 @@ GameInitBox::create_layout_mission() {
   layout_mission->set_indents(20, 16);
   // Start button
   layout_mission->make_item<Button>(0, 0, 32, 32, 266, [this](int x, int y) {
+/*
     Game *game = new Game();
     if (!game->load_mission_map(this->mission)) {
       return;
@@ -341,6 +346,7 @@ GameInitBox::create_layout_mission() {
       delete old_game;
     }
     this->interface->set_player(0);
+*/
     this->close();
   });
 
@@ -373,7 +379,7 @@ GameInitBox::create_layout_mission() {
   });
 
   // Options button
-  layout_mission->make_item<Button>(288, 0, 32, 32, 267, [this](int x, int y) {
+  layout_mission->make_item<Button>(288, 0, 32, 32, 267, [](int x, int y) {
   });
 
   unsigned int x = 0;
@@ -413,6 +419,7 @@ GameInitBox::create_layout_load() {
 
   // Start button
   layout_load->make_item<Button>(0, 0, 32, 32, 266, [this](int x, int y) {
+/*
     Game *game = new Game();
     if (!game->load_mission_map(this->mission)) {
       return;
@@ -429,6 +436,7 @@ GameInitBox::create_layout_load() {
       delete old_game;
     }
     this->interface->set_player(0);
+ */
     this->close();
   });
 
@@ -448,13 +456,13 @@ GameInitBox::create_layout_load() {
   layout_load->add_item(0, 40, list);
   list->set_selection_handler([this](const std::string &item) {
     Game game;
-    if (GameStore::get_instance()->load(item, &game)) {
+    if (GameStore::get_instance().load(item, &game)) {
       this->minimap->set_map(game.get_map());
     }
   });
 
   // Options button
-  layout_load->make_item<Button>(288, 0, 32, 32, 267, [this](int x, int y) {
+  layout_load->make_item<Button>(288, 0, 32, 32, 267, [](int x, int y) {
   });
 
   layout_load->make_item<Label>(0, 212, 296, 9, FREESERF_VERSION);

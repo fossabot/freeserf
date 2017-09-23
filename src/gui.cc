@@ -64,7 +64,7 @@ GuiObject::delete_frame() {
 void
 GuiObject::close_float(std::shared_ptr<GuiObject> obj) {
   EventLoop &event_loop = EventLoop::get_instance();
-  event_loop.deferred_call([this, obj](this){
+  event_loop.deferred_call([this, obj](void*){
     floats.remove(obj);
     on_float_closed(obj);
   }, nullptr);

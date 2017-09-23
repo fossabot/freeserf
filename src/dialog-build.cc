@@ -30,7 +30,7 @@ class BuildingButton : public Button {
 
  public:
   BuildingButton(unsigned int _width, unsigned int _height,
-                 unsigned int _sprite, PlayerColor _color,
+                 unsigned int _sprite, Player::Color _color,
                  std::function<void(int x, int y)> _handler)
     : Button(_width, _height, _sprite, _handler) {
     color = Color(_color.red, _color.green, _color.blue, 0xFF);
@@ -55,7 +55,7 @@ class LayoutBuild : public Layout {
   void make_bld_item(unsigned int x, unsigned int y,
                      unsigned int width, unsigned int height,
                      unsigned int sprite, Building::Type type) {
-    PlayerColor color = {0, 0, 0};
+    Player::Color color = {0, 0, 0};
     Layout::make_item<BuildingButton>(x, y, width, height, sprite, color,
                                       [this, type](unsigned int x,
                                                    unsigned int y) {
