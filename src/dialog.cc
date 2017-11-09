@@ -370,3 +370,14 @@ Dialog::draw_background() {
     }
   }
 }
+
+void
+Dialog::set_parent(std::shared_ptr<GuiObject> _parent) {
+  GuiObject::set_parent(_parent);
+  if (_parent) {
+    int w = 0;
+    int h = 0;
+    _parent->get_size(&w, &h);
+    move_to((w - width) / 2, (h - height) / 2);
+  }
+}

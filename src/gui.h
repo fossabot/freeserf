@@ -73,7 +73,9 @@ class GuiObject : public EventLoop::Handler,
   void set_redraw();
   bool is_displayed() { return displayed; }
   std::shared_ptr<GuiObject> get_parent() { return parent.lock(); }
-  void set_parent(std::shared_ptr<GuiObject> _parent) { parent = _parent; }
+  virtual void set_parent(std::shared_ptr<GuiObject> _parent) {
+    parent = _parent;
+  }
   bool point_inside(int point_x, int point_y);
 
   void add_float(std::shared_ptr<GuiObject> obj, int x, int y);

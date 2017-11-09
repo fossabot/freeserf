@@ -119,13 +119,13 @@ Interface::open_popup(int box) {
 /* Open box for starting a new game */
 void
 Interface::open_game_init() {
-  if (init_box == nullptr) {
+  if (!init_box) {
     init_box = std::make_shared<GameInitBox>(this);
     add_float(init_box, 0, 0);
   }
   init_box->set_displayed(true);
   init_box->set_enabled(true);
-  if (panel != nullptr) {
+  if (panel) {
     panel->set_displayed(false);
   }
   viewport->set_enabled(false);
@@ -667,7 +667,7 @@ Interface::layout() {
   int panel_x = 0;
   int panel_y = height;
 
-  if (panel != nullptr) {
+  if (panel) {
     int panel_width = 352;
     int panel_height = 40;
     panel_x = (width - panel_width) / 2;
@@ -676,7 +676,7 @@ Interface::layout() {
     panel->set_size(panel_width, panel_height);
   }
 
-  if (popup != nullptr) {
+  if (popup) {
     int popup_width = 144;
     int popup_height = 160;
     int popup_x = (width - popup_width) / 2;
@@ -685,16 +685,7 @@ Interface::layout() {
     popup->set_size(popup_width, popup_height);
   }
 
-  if (init_box != nullptr) {
-    int init_box_width = 360;
-    int init_box_height = 256;
-    int init_box_x = (width - init_box_width) / 2;
-    int init_box_y = (height - init_box_height) / 2;
-    init_box->move_to(init_box_x, init_box_y);
-    init_box->set_size(init_box_width, init_box_height);
-  }
-
-  if (notification_box != nullptr) {
+  if (notification_box) {
     int notification_box_width = 200;
     int notification_box_height = 88;
     int notification_box_x = panel_x + 40;
@@ -703,7 +694,7 @@ Interface::layout() {
     notification_box->set_size(notification_box_width, notification_box_height);
   }
 
-  if (viewport != nullptr) {
+  if (viewport) {
     viewport->set_size(width, height);
   }
 

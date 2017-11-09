@@ -194,6 +194,8 @@ class Dialog : public GuiObject {
   void set_focused(PControl control);
   bool is_focused(PControl control) { return focused == control; }
 
+  virtual void set_parent(std::shared_ptr<GuiObject> _parent);
+
  protected:
   virtual void internal_draw();
   virtual bool handle_click_left(int x, int y);

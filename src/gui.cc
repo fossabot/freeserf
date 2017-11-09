@@ -218,9 +218,9 @@ GuiObject::point_inside(int point_x, int point_y) {
 
 void
 GuiObject::add_float(std::shared_ptr<GuiObject> obj, int fx, int fy) {
+  obj->move_to(fx, fy);
   obj->set_parent(shared_from_this());
   floats.push_back(obj);
-  obj->move_to(fx, fy);
   set_redraw();
 }
 
