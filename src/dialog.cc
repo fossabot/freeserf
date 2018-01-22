@@ -352,10 +352,15 @@ Dialog::handle_drag(int dx, int dy) {
 
 bool
 Dialog::handle_key_pressed(char key, int modifier) {
+  if (key == 27) {
+    close();
+  }
+
   if (focused) {
     focused->handle_key_pressed(key, modifier);
     return true;
   }
+
   return false;
 }
 
