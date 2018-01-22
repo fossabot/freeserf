@@ -64,7 +64,7 @@ DialogMap::init() {
 
   // Roads
   button = layout->make_item<Button>(32, 128, 32, 16, 3,
-                            [this](unsigned int x, unsigned int y) {
+                                     [this](unsigned int x, unsigned int y) {
     minimap->set_draw_roads(!minimap->get_draw_roads());
   });
   button->set_delegate([this]()->unsigned int {
