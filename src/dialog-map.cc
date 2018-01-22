@@ -21,6 +21,8 @@
 
 #include "src/dialog-map.h"
 
+#include <memory>
+
 #include "src/interface.h"
 #include "src/minimap.h"
 #include "src/viewport.h"

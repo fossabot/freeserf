@@ -22,6 +22,7 @@
 #include "src/dialog-quit-confirm.h"
 
 #include <sstream>
+#include <memory>
 
 #include "src/interface.h"
 #include "src/audio.h"

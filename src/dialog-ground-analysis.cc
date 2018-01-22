@@ -21,6 +21,9 @@
 
 #include "src/dialog-ground-analysis.h"
 
+#include <memory>
+#include <string>
+
 #include "src/interface.h"
 #include "src/game.h"
 

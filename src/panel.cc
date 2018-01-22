@@ -276,8 +276,8 @@ PanelBar::button_click(int button) {
       break;
     case ButtonDestroyRoad: {
       bool r = interface->get_player()->get_game()->demolish_road(
-                                                  interface->get_map_cursor_pos(),
-                                                         interface->get_player());
+                                                interface->get_map_cursor_pos(),
+                                                       interface->get_player());
       if (!r) {
         play_sound(Audio::TypeSfxNotAccepted);
         interface->update_map_cursor_pos(interface->get_map_cursor_pos());

@@ -22,6 +22,7 @@
 #include "src/dialog.h"
 
 #include <string>
+#include <limits>
 
 // Control
 
@@ -118,7 +119,7 @@ Label::Label(unsigned int _width, unsigned int _height,
 }
 
 Label::Label(unsigned int _width, unsigned int _height, unsigned int _sprite)
-  : Control(_width, _height){
+  : Control(_width, _height) {
   text_color = Color::green;
   delegate = nullptr;
   sprite = _sprite;

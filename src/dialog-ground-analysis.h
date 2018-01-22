@@ -22,6 +22,8 @@
 #ifndef SRC_DIALOG_GROUND_ANALYSIS_H_
 #define SRC_DIALOG_GROUND_ANALYSIS_H_
 
+#include <string>
+
 #include "src/dialog.h"
 
 class Interface;
@@ -38,7 +40,6 @@ class DialogGroundAnalysis : public Dialog {
   virtual void init();
 
   const std::string prepare_res_amount_text(unsigned int amount) const;
-
 };
 
 #endif  // SRC_DIALOG_GROUND_ANALYSIS_H_

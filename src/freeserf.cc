@@ -23,6 +23,7 @@
 
 #include <string>
 #include <iostream>
+#include <memory>
 
 #include "src/log.h"
 #include "src/version.h"

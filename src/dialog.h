@@ -84,12 +84,12 @@ class Button : public Control {
 typedef std::shared_ptr<Button> PButton;
 
 class ButtonText : public Control {
-protected:
+ protected:
   std::string text;
   std::function<void(int x, int y)> handler;
   std::function<std::string()> delegate;
 
-public:
+ public:
   ButtonText(unsigned int _width, unsigned int _height,
              const std::string &_text,
              std::function<void(int x, int y)> _handler);
@@ -98,7 +98,7 @@ public:
     delegate = _delegate;
   }
 
-public:
+ public:
   virtual void draw(Frame *frame, unsigned int x, unsigned int y);
   virtual bool handle_click_left(int x, int y);
 };

@@ -22,6 +22,8 @@
 #ifndef SRC_DIALOG_MAP_H_
 #define SRC_DIALOG_MAP_H_
 
+#include <memory>
+
 #include "src/dialog.h"
 
 class Interface;

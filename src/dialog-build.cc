@@ -21,6 +21,8 @@
 
 #include "src/dialog-build.h"
 
+#include <memory>
+
 #include "src/interface.h"
 #include "src/game.h"
 
@@ -46,7 +48,7 @@ class LayoutBuild : public Layout {
   Interface *interface;
 
  public:
-  LayoutBuild(Interface *_interface)
+  explicit LayoutBuild(Interface *_interface)
     : Layout(144, 144) {
     set_indents(8, 9);
     interface = _interface;
