@@ -137,6 +137,11 @@ Graphics::Graphics() {
 
 Graphics::~Graphics() {
   Image::clear_cache();
+
+  if (video != nullptr) {
+    delete video;
+    video = nullptr;
+  }
 }
 
 Graphics &
