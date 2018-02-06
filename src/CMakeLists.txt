@@ -196,7 +196,6 @@ set(OTHER_HEADERS pathfinder.h
 set(FREESERF_SOURCES freeserf.cc ${OTHER_SOURCES})
 set(FREESERF_HEADERS freeserf.h ${OTHER_HEADERS})
 add_executable(FreeSerf MACOSX_BUNDLE WIN32 ${FREESERF_SOURCES} ${FREESERF_HEADERS})
-target_check_style(FreeSerf)
 
 target_link_libraries(FreeSerf game platform data tools)
 if(SDL2_FOUND)
@@ -215,6 +214,11 @@ if(XMP_FOUND)
   target_link_libraries(FreeSerf optimized ${XMP_LIBRARY} debug ${XMP_LIBRARY_DEBUG})
 endif()
 install(TARGETS FreeSerf DESTINATION ".")
+
+target_check_style(FreeSerf)
+target_check_style(game)
+target_check_style(platform)
+target_check_style(data)
 
 if(WIN32)
   if(DEFINED _VCPKG_INSTALLED_DIR)
