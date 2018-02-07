@@ -26,7 +26,6 @@
 #include <string>
 
 #include "src/misc.h"
-#include "src/mission.h"
 #include "src/data.h"
 #include "src/interface.h"
 #include "src/version.h"
@@ -35,7 +34,7 @@
 #include "src/map-generator.h"
 #include "src/map-geometry.h"
 #include "src/list.h"
-#include "src/game-manager.h"
+#include "src/game-source-custom.h"
 #include "src/popup.h"
 
 class RandomInput : public TextInput {
@@ -88,10 +87,18 @@ class RandomInput : public TextInput {
   }
 };
 
+const PlayerInfo::Color default_player_colors[] = {
+  {0x00, 0xe3, 0xe3},
+  {0xcf, 0x63, 0x63},
+  {0xdf, 0x7f, 0xef},
+  {0xef, 0xef, 0x8f}
+};
+
 GameInitBox::GameInitBox(Interface *interface)
   : random_input(new RandomInput())
   , minimap(new Minimap(nullptr))
-  , file_list(new ListSavedFiles()) {
+  , file_list(new ListGames(
+                        GameManager::get_instance().get_game_source("local"))) {
   this->interface = interface;
 
   game_type = GameCustom;
@@ -99,10 +106,16 @@ GameInitBox::GameInitBox(Interface *interface)
 
   set_size(360, 254);
 
-  custom_mission = std::make_shared<GameInfo>(Random());
-  custom_mission->remove_all_players();
-  custom_mission->add_player(12, {0x00, 0xe3, 0xe3}, 40, 40, 40);
-  custom_mission->add_player(1, {0xcf, 0x63, 0x63}, 20, 30, 40);
+  std::shared_ptr<GameInfoCustom> game_info =
+                                     std::make_shared<GameInfoCustom>(Random());
+  PPlayerInfoCustom player = std::make_shared<PlayerInfoCustom>(12,
+                                                       default_player_colors[0],
+                                                                40, 40, 40);
+  game_info->add_player(player);
+  player = std::make_shared<PlayerInfoCustom>(1, default_player_colors[1],
+                                              20, 30, 40);
+  game_info->add_player(player);
+  custom_mission = game_info;
   mission = custom_mission;
 
   minimap->set_displayed(true);
@@ -117,12 +130,9 @@ GameInitBox::GameInitBox(Interface *interface)
 
   file_list->set_size(160, 160);
   file_list->set_displayed(false);
-  file_list->set_selection_handler([this](const std::string &item) {
-    Game game;
-    if (GameStore::get_instance().load(item, &game)) {
-      this->map = game.get_map();
-      this->minimap->set_map(map);
-    }
+  file_list->set_selection_handler([this](PGameInfo game_info) {
+    this->mission = game_info;
+    this->generate_map_preview();
   });
   add_float(file_list.get(), 20, 55);
 }
@@ -294,17 +304,9 @@ void
 GameInitBox::handle_action(int action) {
   switch (action) {
     case ActionStartGame: {
-      if (game_type == GameLoad) {
-        std::string path = file_list->get_selected();
-        if (!GameManager::get_instance().load_game(path)) {
-          return;
-        }
-      } else {
-        if (!GameManager::get_instance().start_game(mission)) {
-          return;
-        }
+      if (!GameManager::get_instance().start_game(mission)) {
+        return;
       }
-
       interface->close_game_init();
       break;
     }
@@ -315,7 +317,9 @@ GameInitBox::handle_action(int action) {
       }
       switch (game_type) {
         case GameMission: {
-          mission = GameInfo::get_mission(game_mission);
+          PGameSource source =
+                         GameManager::get_instance().get_game_source("mission");
+          mission = source->game_info_at(game_mission);
           random_input->set_displayed(false);
           file_list->set_displayed(false);
           generate_map_preview();
@@ -344,24 +348,31 @@ GameInitBox::handle_action(int action) {
     }
     case ActionIncrement:
       switch (game_type) {
-        case GameMission:
-          game_mission = std::min(game_mission+1,
-                             static_cast<int>(GameInfo::get_mission_count())-1);
-          mission = GameInfo::get_mission(game_mission);
+        case GameMission: {
+          PGameSource source =
+                         GameManager::get_instance().get_game_source("mission");
+          game_mission = std::min(game_mission + 1,
+                                  static_cast<int>(source->count() - 1));
+          mission = source->game_info_at(game_mission);
           break;
-        case GameCustom:
+        }
+        case GameCustom: {
           custom_mission->set_map_size(std::min(10u,
                                            custom_mission->get_map_size() + 1));
           break;
+        }
       }
       generate_map_preview();
       break;
     case ActionDecrement:
       switch (game_type) {
-        case GameMission:
+        case GameMission: {
+          PGameSource source =
+                         GameManager::get_instance().get_game_source("mission");
           game_mission = std::max(0, game_mission-1);
-          mission = GameInfo::get_mission(game_mission);
+          mission = source->game_info_at(game_mission);
           break;
+        }
         case GameCustom:
           custom_mission->set_map_size(std::max(3u,
                                            custom_mission->get_map_size() - 1));
@@ -496,9 +507,7 @@ GameInitBox::handle_player_click(unsigned int player_index, int cx, int cy) {
     return true;
   }
 
-  if (cx < 8 || cx > 8 + 64 || cy < 8 || cy > 76) {
-    return false;
-  }
+  PPlayerInfoCustom player = custom_mission->get_custom_player(player_index);
 
   if ((cx < 8+32) && (cy < 72)) {
     if (player_index >= mission->get_player_count()) {
