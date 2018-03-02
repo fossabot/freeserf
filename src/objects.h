@@ -30,15 +30,17 @@
 #include <utility>
 
 class Game;
+typedef std::shared_ptr<Game> PGame;
+typedef std::weak_ptr<Game> WGame;
 
 class GameObject {
- protected:
+ private:
   unsigned int index;
-  Game *game;
+  WGame game;
 
  public:
   GameObject() = delete;
-  GameObject(Game *game, unsigned int index) : index(index), game(game) {}
+  GameObject(PGame game, unsigned int index) : index(index), game(game) {}
   GameObject(const GameObject& that) = delete;  // Copying prohibited
   GameObject(GameObject&& that) = delete;  // Moving prohibited
   virtual ~GameObject() {}
@@ -46,29 +48,27 @@ class GameObject {
   GameObject& operator = (const GameObject& that) = delete;
   GameObject& operator = (GameObject&& that) = delete;
 
-  Game *get_game() const { return game; }
+  PGame get_game() const { return game.lock(); }
   unsigned int get_index() const { return index; }
 };
 
 template<class T>
 class Collection {
  protected:
-  typedef std::map<unsigned int, T*> Objects;
+  typedef std::shared_ptr<T> PObject;
+  typedef std::map<unsigned int, PObject> Objects;
+  typedef typename Objects::iterator ObjectsIt;
 
   Objects objects;
   unsigned int last_object_index;
   std::set<unsigned int> free_object_indexes;
-  Game *game;
+  WGame game;
 
  public:
-  Collection() {
-    game = NULL;
-    last_object_index = 0;
+  Collection() : last_object_index(0) {
   }
 
-  explicit Collection(Game *_game) {
-    game = _game;
-    last_object_index = 0;
+  explicit Collection(PGame _game) : last_object_index(0), game(_game) {
   }
 
   virtual ~Collection() {
@@ -76,13 +76,10 @@ class Collection {
   }
 
   void clear() {
-    for (std::pair<const unsigned int, T*> &kv : objects) {
-      delete kv.second;
-    }
     objects.clear();
   }
 
-  T*
+  PObject
   allocate() {
     unsigned int new_index = 0;
 
@@ -99,10 +96,13 @@ class Collection {
       last_object_index++;
     }
 
-    T *new_object = new T(game, new_index);
-    objects[new_index] = new_object;
+    PGame g = game.lock();
+    ObjectsIt it = objects.emplace(std::piecewise_construct,
+                                   std::forward_as_tuple(new_index),
+                                   std::forward_as_tuple(std::make_shared<T>(g,
+                                                         new_index))).first;
 
-    return new_object;
+    return it->second;
   }
 
   bool
@@ -110,11 +110,13 @@ class Collection {
     return (objects.end() != objects.find(index));
   }
 
-  T*
+  PObject
   get_or_insert(unsigned int index) {
     if (!exists(index)) {
-      T *new_object = new T(game, index);
-      objects[index] = new_object;
+      objects.emplace(std::piecewise_construct,
+                      std::forward_as_tuple(index),
+                      std::forward_as_tuple(std::make_shared<T>(game.lock(),
+                                                                index)));
 
       std::set<unsigned int>::iterator i = free_object_indexes.find(index);
       if (i != free_object_indexes.end()) {
@@ -132,12 +134,14 @@ class Collection {
     return objects.at(index);
   }
 
-  T* operator[] (unsigned int index) {
+  PObject
+  operator[] (unsigned int index) {
     if (!exists(index)) return nullptr;
     return objects.at(index);
   }
 
-  const T* operator[] (unsigned int index) const {
+  const PObject
+  operator[] (unsigned int index) const {
     if (!exists(index)) return nullptr;
     return objects.at(index);
   }
@@ -167,7 +171,8 @@ class Collection {
       return (!(*this == right));
     }
 
-    T* operator*() const {
+    PObject
+    operator*() const {
       return internal_iterator->second;
     }
   };
@@ -194,7 +199,7 @@ class Collection {
      return !(*this == right);
     }
 
-    const T* operator*() const {
+    const PObject operator*() const {
      return internal_iterator->second;
     }
   };
@@ -212,9 +217,7 @@ class Collection {
     if (i == objects.end()) {
       return;
     }
-    T *object_for_deleting = objects[index];
     objects.erase(i);
-    delete object_for_deleting;
 
     if (index == last_object_index) {
       last_object_index--;

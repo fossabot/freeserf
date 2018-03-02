@@ -27,11 +27,19 @@
 #include "src/objects.h"
 
 class Flag;
+typedef std::shared_ptr<Flag> PFlag;
+typedef std::weak_ptr<Flag> WFlag;
 class SaveReaderBinary;
 class SaveReaderText;
 class SaveWriterText;
+class Player;
+typedef std::shared_ptr<Player> PPlayer;
+typedef std::weak_ptr<Player> WPlayer;
+class Building;
+typedef std::shared_ptr<Building> PBuilding;
+typedef std::weak_ptr<Building> WBuilding;
 
-class Inventory : public GameObject {
+class Inventory : public GameObject, public std::enable_shared_from_this<Inventory> {
  public:
   typedef enum Mode {
     ModeIn = 0,    // 00
@@ -40,38 +48,31 @@ class Inventory : public GameObject {
   } Mode;
 
  protected:
-  unsigned int owner;
-  /* Index of flag connected to this inventory */
-  unsigned int flag;
-  /* Index of building containing this inventory */
-  unsigned int building;
-  /* Count of resources */
-  ResourceMap resources;
-  /* Resources waiting to be moved out */
-  struct out_queue {
+  WPlayer owner;           // Player owning this inventory
+  WFlag flag;              // Flag connected to this inventory
+  WBuilding building;      // Building containing this inventory
+  ResourceMap resources;   // Count of resources
+  struct out_queue {       // Resources waiting to be moved out
     Resource::Type type;
     unsigned int dest;
   } out_queue[2];
-  /* Count of serfs waiting to move out */
-  unsigned int serfs_out;
-  /* Count of generic serfs */
-  int generic_count;
+  unsigned int serfs_out;  // Count of serfs waiting to move out
+  int generic_count;       // Count of generic serfs
   int res_dir;
-  /* Indices to serfs of each type */
-  Serf::SerfMap serfs;
+  Serf::SerfMap serfs;     // Indices to serfs of each type
 
  public:
-  Inventory(Game *game, unsigned int index);
+  Inventory(PGame game, unsigned int index);
   virtual ~Inventory();
 
-  unsigned int get_owner() { return owner; }
-  void set_owner(unsigned int owner) { this->owner = owner; }
+  PPlayer get_owner() { return owner.lock(); }
+  void set_owner(PPlayer owner_) { owner = owner_; }
 
-  int get_flag_index() { return flag; }
-  void set_flag_index(int flag_index) { flag = flag_index; }
+  PFlag get_flag() { return flag.lock(); }
+  void set_flag(PFlag flag_) { flag = flag_; }
 
-  int get_building_index() { return building; }
-  void set_building_index(int building_index) { building = building_index; }
+  PBuilding get_building() { return building.lock(); }
+  void set_building(PBuilding building_) { building = building_; }
 
   Inventory::Mode get_res_mode() { return (Inventory::Mode)(res_dir & 3); }
   void set_res_mode(Inventory::Mode mode) { res_dir = (res_dir & 0xFC) | mode; }
@@ -83,10 +84,10 @@ class Inventory : public GameObject {
 
   int get_serf_queue_length() { return serfs_out; }
   void serf_away() { serfs_out--; }
-  bool call_out_serf(Serf *serf);
-  Serf *call_out_serf(Serf::Type type);
-  bool call_internal(Serf *serf);
-  Serf *call_internal(Serf::Type type);
+  bool call_out_serf(PSerf serf);
+  PSerf call_out_serf(Serf::Type type);
+  bool call_internal(PSerf serf);
+  PSerf call_internal(Serf::Type type);
   void serf_come_back() { generic_count++; }
   size_t free_serf_count() { return generic_count; }
   bool have_serf(Serf::Type type) { return (serfs[type] != 0); }
@@ -101,7 +102,7 @@ class Inventory : public GameObject {
     return (out_queue[0].type != Resource::TypeNone); }
   bool is_queue_full() { return (out_queue[1].type != Resource::TypeNone); }
   void get_resource_from_queue(Resource::Type *res, int *dest);
-  void reset_queue_for_dest(Flag *flag);
+  void reset_queue_for_dest(PFlag flag);
 
   bool has_food() { return (resources[Resource::TypeFish] != 0 ||
                             resources[Resource::TypeMeat] != 0 ||
@@ -114,17 +115,17 @@ class Inventory : public GameObject {
   /* Create initial resources */
   void apply_supplies_preset(unsigned int supplies);
 
-  Serf *call_transporter(bool water);
+  PSerf call_transporter(bool water);
 
-  bool promote_serf_to_knight(Serf *serf);
+  bool promote_serf_to_knight(PSerf serf);
 
-  Serf *spawn_serf_generic();
-  bool specialize_serf(Serf *serf, Serf::Type type);
-  Serf *specialize_free_serf(Serf::Type type);
+  PSerf spawn_serf_generic();
+  bool specialize_serf(PSerf serf, Serf::Type type);
+  PSerf specialize_free_serf(Serf::Type type);
   unsigned int serf_potential_count(Serf::Type type);
 
-  void serf_idle_in_stock(Serf *serf);
-  void knight_training(Serf *serf, int p);
+  void serf_idle_in_stock(PSerf serf);
+  void knight_training(PSerf serf, int p);
 
   friend SaveReaderBinary&
     operator >> (SaveReaderBinary &reader, Inventory &inventory);
@@ -133,5 +134,7 @@ class Inventory : public GameObject {
   friend SaveWriterText&
     operator << (SaveWriterText &writer, Inventory &inventory);
 };
+
+typedef std::shared_ptr<Inventory> PInventory;
 
 #endif  // SRC_INVENTORY_H_

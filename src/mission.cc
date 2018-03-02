@@ -499,7 +499,7 @@ GameInfo::instantiate() {
     unsigned int index = game->add_player(player_info->get_intelligence(),
                                           player_info->get_supplies(),
                                           player_info->get_reproduction());
-    Player *player = game->get_player(index);
+    PPlayer player = game->get_player(index);
     player->init_view(player_info->get_color(), player_info->get_face());
 
     PlayerInfo::Pos castle_pos = player_info->get_castle_pos();

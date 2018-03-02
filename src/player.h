@@ -31,7 +31,11 @@
 
 class Serf;
 class Inventory;
+typedef std::shared_ptr<Inventory> PInventory;
+typedef std::weak_ptr<Inventory> WInventory;
 class Building;
+typedef std::shared_ptr<Building> PBuilding;
+typedef std::weak_ptr<Building> WBuilding;
 class SaveReaderBinary;
 class SaveReaderText;
 class SaveWriterText;
@@ -78,7 +82,7 @@ class PosTimer {
 typedef std::vector<PosTimer> PosTimers;
 
 /* Player object. Holds the game state of a player. */
-class Player : public GameObject {
+class Player : public GameObject, public std::enable_shared_from_this<Player> {
  public:
   typedef struct Color {
     unsigned char red;
@@ -105,8 +109,8 @@ class Player : public GameObject {
   Messages messages;
   PosTimers timers;
 
-  int building;
-  int castle_inventory;
+  WBuilding castle;
+  WInventory castle_inventory;
   int cont_search_after_non_optimal_find;
   int knights_to_spawn;
   unsigned int total_land_area;
@@ -143,7 +147,6 @@ class Player : public GameObject {
   int castle_score;
   int send_generic_delay;
   unsigned int initial_supplies;
-  int serf_index;
   int knight_cycle_counter;
   int send_knight_delay;
   int military_max_gold;
@@ -173,7 +176,7 @@ class Player : public GameObject {
   unsigned int temp_index;
 
  public:
-  Player(Game *game, unsigned int index);
+  Player(PGame game, unsigned int index);
 
   void init(unsigned int intelligence, unsigned int supplies,
             unsigned int reproduction);
@@ -247,9 +250,8 @@ class Player : public GameObject {
   void start_attack();
   void cycle_knights();
 
-  void create_initial_castle_serfs(Building *castle);
-  Serf *spawn_serf_generic();
-  int spawn_serf(Serf **serf, Inventory **inventory, bool want_knight);
+  PSerf spawn_serf_generic();
+  bool spawn_serf(PSerf *serf, PInventory *inventory, bool want_knight);
   bool tick_send_generic_delay();
   bool tick_send_knight_delay();
   Serf::Type get_cycling_serf_type(Serf::Type type) const;
@@ -261,10 +263,10 @@ class Player : public GameObject {
   void increase_res_count(Resource::Type type) { resource_count[type]++; }
   void decrease_res_count(Resource::Type type) { resource_count[type]--; }
 
-  void building_founded(Building *building);
-  void building_built(Building *building);
-  void building_captured(Building *building);
-  void building_demolished(Building *building);
+  void building_founded(PBuilding building);
+  void building_built(PBuilding building);
+  void building_captured(PBuilding building);
+  void building_demolished(PBuilding building);
   int get_completed_building_count(int type) const {
     return completed_building_count[type]; }
   int get_incomplete_building_count(int type) const {
@@ -348,6 +350,10 @@ class Player : public GameObject {
   void init_ai_values(size_t face);
 
   int available_knights_at_pos(MapPos pos, int index, int dist);
+
+  void create_initial_castle_serfs();
 };
+
+typedef std::shared_ptr<Player> PPlayer;
 
 #endif  // SRC_PLAYER_H_

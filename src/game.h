@@ -44,11 +44,11 @@ class SaveReaderBinary;
 class SaveReaderText;
 class SaveWriterText;
 
-class Game {
+class Game : public std::enable_shared_from_this<Game> {
  public:
-  typedef std::list<Serf*> ListSerfs;
-  typedef std::list<Building*> ListBuildings;
-  typedef std::list<Inventory*> ListInventories;
+  typedef std::list<PSerf> ListSerfs;
+  typedef std::list<PBuilding> ListBuildings;
+  typedef std::list<PInventory> ListInventories;
 
  protected:
   typedef Collection<Flag> Flags;
@@ -114,9 +114,9 @@ class Game {
   unsigned int get_gold_total() const { return gold_total; }
   void add_gold_total(int delta);
 
-  Building *get_building_at_pos(MapPos pos);
-  Flag *get_flag_at_pos(MapPos pos);
-  Serf *get_serf_at_pos(MapPos pos);
+  PBuilding get_building_at_pos(MapPos pos);
+  PFlag get_flag_at_pos(MapPos pos);
+  PSerf get_serf_at_pos(MapPos pos);
 
   /* External interface */
   unsigned int add_player(unsigned int intelligence, unsigned int supplies,
@@ -130,7 +130,7 @@ class Game {
   void speed_reset();
 
   void prepare_ground_analysis(MapPos pos, int estimates[5]);
-  bool send_geologist(Flag *dest);
+  bool send_geologist(PFlag dest);
 
   int get_leveling_height(MapPos pos) const;
 
@@ -139,42 +139,42 @@ class Game {
   bool can_build_mine(MapPos pos) const;
   bool can_build_large(MapPos pos) const;
   bool can_build_building(MapPos pos, Building::Type type,
-                          const Player *player) const;
-  bool can_build_castle(MapPos pos, const Player *player) const;
-  bool can_build_flag(MapPos pos, const Player *player) const;
-  bool can_player_build(MapPos pos, const Player *player) const;
+                          const PPlayer player) const;
+  bool can_build_castle(MapPos pos, const PPlayer player) const;
+  bool can_build_flag(MapPos pos, const PPlayer player) const;
+  bool can_player_build(MapPos pos, const PPlayer player) const;
 
-  int can_build_road(const Road &road, const Player *player,
+  int can_build_road(const Road &road, const PPlayer player,
                      MapPos *dest, bool *water) const;
 
-  bool can_demolish_flag(MapPos pos, const Player *player) const;
-  bool can_demolish_road(MapPos pos, const Player *player) const;
+  bool can_demolish_flag(MapPos pos, const PPlayer player) const;
+  bool can_demolish_road(MapPos pos, const PPlayer player) const;
 
-  bool build_road(const Road &road, const Player *player);
+  bool build_road(const Road &road, const PPlayer player);
 
-  bool build_flag(MapPos pos, Player *player);
-  bool build_building(MapPos pos, Building::Type type, Player *player);
-  bool build_castle(MapPos pos, Player *player);
+  bool build_flag(MapPos pos, PPlayer player);
+  bool build_building(MapPos pos, Building::Type type, PPlayer player);
+  bool build_castle(MapPos pos, PPlayer player);
 
-  bool demolish_road(MapPos pos, Player *player);
-  bool demolish_flag(MapPos pos, Player *player);
-  bool demolish_building(MapPos pos, Player *player);
+  bool demolish_road(MapPos pos, PPlayer player);
+  bool demolish_flag(MapPos pos, PPlayer player);
+  bool demolish_building(MapPos pos, PPlayer player);
 
-  void set_inventory_resource_mode(Inventory *inventory, int mode);
-  void set_inventory_serf_mode(Inventory *inventory, int mode);
+  void set_inventory_resource_mode(PInventory inventory, int mode);
+  void set_inventory_serf_mode(PInventory inventory, int mode);
 
 
   /* Internal interface */
   void init_land_ownership();
   void update_land_ownership(MapPos pos);
-  void occupy_enemy_building(Building *building, int player);
+  void occupy_enemy_building(PBuilding building, PPlayer player);
 
   void cancel_transported_resource(Resource::Type type, unsigned int dest);
   void lose_resource(Resource::Type type);
 
   uint16_t random_int();
 
-  bool send_serf_to_flag(Flag *dest, Serf::Type type, Resource::Type res1,
+  bool send_serf_to_flag(PFlag dest, Serf::Type type, Resource::Type res1,
                          Resource::Type res2);
 
   int get_player_history_index(size_t scale) const {
@@ -183,40 +183,40 @@ class Game {
 
   int next_search_id();
 
-  Serf *create_serf(int index = -1);
-  void delete_serf(Serf *serf);
-  Flag *create_flag(int index = -1);
-  Inventory *create_inventory(int index = -1);
-  void delete_inventory(Inventory *inventory);
-  Building *create_building(int index = -1);
-  void delete_building(Building *building);
+  PSerf create_serf(int index = -1);
+  void delete_serf(PSerf serf);
+  PFlag create_flag(int index = -1);
+  PInventory create_inventory(int index = -1);
+  void delete_inventory(PInventory inventory);
+  PBuilding create_building(int index = -1);
+  void delete_building(PBuilding building);
 
-  Serf *get_serf(unsigned int index) { return serfs[index]; }
-  Flag *get_flag(unsigned int index) { return flags[index]; }
-  Inventory *get_inventory(unsigned int index) { return inventories[index]; }
-  Building *get_building(unsigned int index) { return buildings[index]; }
-  Player *get_player(unsigned int index) { return players[index]; }
+  PSerf get_serf(unsigned int index) { return serfs[index]; }
+  PFlag get_flag(unsigned int index) { return flags[index]; }
+  PInventory get_inventory(unsigned int index) { return inventories[index]; }
+  PBuilding get_building(unsigned int index) { return buildings[index]; }
+  PPlayer get_player(unsigned int index) { return players[index]; }
 
-  ListSerfs get_player_serfs(Player *player);
-  ListBuildings get_player_buildings(Player *player);
-  ListSerfs get_serfs_in_inventory(Inventory *inventory);
+  ListSerfs get_player_serfs(PPlayer player);
+  ListBuildings get_player_buildings(PPlayer player);
+  ListSerfs get_serfs_in_inventory(PInventory inventory);
   ListSerfs get_serfs_related_to(unsigned int dest, Direction dir);
-  ListInventories get_player_inventories(Player *player);
+  ListInventories get_player_inventories(PPlayer player);
 
   ListSerfs get_serfs_at_pos(MapPos pos);
 
-  Player *get_next_player(const Player *player);
-  unsigned int get_enemy_score(const Player *player) const;
-  void building_captured(Building *building);
+  PPlayer get_next_player(const PPlayer player);
+  unsigned int get_enemy_score(const PPlayer player) const;
+  void building_captured(PBuilding building);
   void clear_search_id();
 
  protected:
   void clear_serf_request_failure();
   void update_knight_morale();
-  static bool update_inventories_cb(Flag *flag, void *data);
+  static bool update_inventories_cb(PFlag flag, void *data);
   void update_inventories();
   void update_flags();
-  static bool send_serf_to_flag_search_cb(Flag *flag, void *data);
+  static bool send_serf_to_flag_search_cb(PFlag flag, void *data);
   void update_buildings();
   void update_serfs();
   void record_player_history(int max_level, int aspect,
@@ -225,14 +225,14 @@ class Game {
   void update_game_stats();
   void get_resource_estimate(MapPos pos, int weight, int estimates[5]);
   bool road_segment_in_water(MapPos pos, Direction dir) const;
-  void flag_reset_transport(Flag *flag);
-  void building_remove_player_refs(Building *building);
+  void flag_reset_transport(PFlag flag);
+  void building_remove_player_refs(PBuilding building);
   bool path_serf_idle_to_wait_state(MapPos pos);
   void remove_road_forwards(MapPos pos, Direction dir);
   bool demolish_road_(MapPos pos);
   void build_flag_split_path(MapPos pos);
   bool map_types_within(MapPos pos, Map::Terrain low, Map::Terrain high) const;
-  void flag_remove_player_refs(Flag *flag);
+  void flag_remove_player_refs(PFlag flag);
   bool demolish_flag_(MapPos pos);
   bool demolish_building_(MapPos pos);
   void surrender_land(MapPos pos);

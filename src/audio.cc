@@ -41,15 +41,15 @@ ExceptionAudio::get_description() const {
 Audio *
 Audio::instance = nullptr;
 
-Audio::Player::Player() {
+Audio::AudioPlayer::AudioPlayer() {
   enabled = true;
 }
 
-Audio::Player::~Player() {
+Audio::AudioPlayer::~AudioPlayer() {
 }
 
 Audio::PTrack
-Audio::Player::play_track(int track_id) {
+Audio::AudioPlayer::play_track(int track_id) {
   if (!is_enabled()) {
     return nullptr;
   }

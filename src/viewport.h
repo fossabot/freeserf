@@ -100,19 +100,19 @@ class Viewport : public GuiObject, public Map::Handler {
                                        const Color &color = Color::transparent);
   void draw_shadow_and_building_unfinished(int x, int y, int index,
                                            int progress);
-  void draw_building_unfinished(Building *building, Building::Type bld_type,
+  void draw_building_unfinished(PBuilding building, Building::Type bld_type,
                                 int x, int y);
-  void draw_ocupation_flag(Building *building, int x, int y, float mul);
-  void draw_unharmed_building(Building *building, int x, int y);
-  void draw_burning_building(Building *building, int x, int y);
+  void draw_ocupation_flag(PBuilding building, int x, int y, float mul);
+  void draw_unharmed_building(PBuilding building, int x, int y);
+  void draw_burning_building(PBuilding building, int x, int y);
   void draw_building(MapPos pos, int x, int y);
   void draw_water_waves(MapPos pos, int x, int y);
   void draw_water_waves_row(MapPos pos, int y_base, int cols, int x_base);
   void draw_flag_and_res(MapPos pos, int x, int y);
   void draw_map_objects_row(MapPos pos, int y_base, int cols, int x_base);
   void draw_row_serf(int x, int y, bool shadow, const Color &color, int body);
-  int serf_get_body(Serf *serf);
-  void draw_active_serf(Serf *serf, MapPos pos, int x_base, int y_base);
+  int serf_get_body(PSerf serf);
+  void draw_active_serf(PSerf serf, MapPos pos, int x_base, int y_base);
   void draw_serf_row(MapPos pos, int y_base, int cols, int x_base);
   void draw_serf_row_behind(MapPos pos, int y_base, int cols, int x_base);
   void draw_game_objects(int layers);

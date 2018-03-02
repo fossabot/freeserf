@@ -28,12 +28,9 @@
 #include "src/game.h"
 #include "src/serf.h"
 
-Inventory::Inventory(Game *game, unsigned int index)
+Inventory::Inventory(PGame game, unsigned int index)
   : GameObject(game, index) {
-  owner = 0;
   res_dir = 0;
-  flag = 0;
-  building = 0;
   for (int i = 0; i < 2; i++) {
     out_queue[i].type = Resource::TypeNone;
     out_queue[i].dest = 0;
@@ -43,16 +40,19 @@ Inventory::Inventory(Game *game, unsigned int index)
 }
 
 Inventory::~Inventory() {
-  for (int i = 0; i < 2 && out_queue[i].type != Resource::TypeNone; i++) {
-    Resource::Type res = out_queue[i].type;
-    int dest = out_queue[i].dest;
+  PGame g = get_game();
+  if (g) {
+    for (int i = 0; i < 2 && out_queue[i].type != Resource::TypeNone; i++) {
+      Resource::Type res = out_queue[i].type;
+      int dest = out_queue[i].dest;
 
-    game->cancel_transported_resource(res, dest);
-    game->lose_resource(res);
+      get_game()->cancel_transported_resource(res, dest);
+      get_game()->lose_resource(res);
+    }
+
+    get_game()->add_gold_total(-static_cast<int>(resources[Resource::TypeGoldBar]));
+    get_game()->add_gold_total(-static_cast<int>(resources[Resource::TypeGoldOre]));
   }
-
-  game->add_gold_total(-static_cast<int>(resources[Resource::TypeGoldBar]));
-  game->add_gold_total(-static_cast<int>(resources[Resource::TypeGoldOre]));
 }
 
 void
@@ -104,7 +104,7 @@ Inventory::add_to_queue(Resource::Type type, unsigned int dest) {
 }
 
 void
-Inventory::reset_queue_for_dest(Flag *flag_) {
+Inventory::reset_queue_for_dest(PFlag flag_) {
   if (out_queue[1].type != Resource::TypeNone &&
       out_queue[1].dest == flag_->get_index()) {
     push_resource(out_queue[1].type);
@@ -165,18 +165,18 @@ Inventory::apply_supplies_preset(unsigned int supplies) {
   }
 }
 
-Serf*
+PSerf
 Inventory::call_transporter(bool water) {
-  Serf *serf = NULL;
+  PSerf serf;
 
   if (water) {
     if (serfs[Serf::TypeSailor] != 0) {
-      serf = game->get_serf(serfs[Serf::TypeSailor]);
+      serf = get_game()->get_serf(serfs[Serf::TypeSailor]);
       serfs[Serf::TypeSailor] = 0;
     } else {
       if ((serfs[Serf::TypeGeneric] != 0) &&
           (resources[Resource::TypeBoat] > 0)) {
-        serf = game->get_serf(serfs[Serf::TypeGeneric]);
+        serf = get_game()->get_serf(serfs[Serf::TypeGeneric]);
         serfs[Serf::TypeGeneric] = 0;
         resources[Resource::TypeBoat]--;
         serf->set_type(Serf::TypeSailor);
@@ -187,11 +187,11 @@ Inventory::call_transporter(bool water) {
     }
   } else {
     if (serfs[Serf::TypeTransporter] != 0) {
-      serf = game->get_serf(serfs[Serf::TypeTransporter]);
+      serf = get_game()->get_serf(serfs[Serf::TypeTransporter]);
       serfs[Serf::TypeTransporter] = 0;
     } else {
       if (serfs[Serf::TypeGeneric] != 0) {
-        serf = game->get_serf(serfs[Serf::TypeGeneric]);
+        serf = get_game()->get_serf(serfs[Serf::TypeGeneric]);
         serfs[Serf::TypeGeneric] = 0;
         serf->set_type(Serf::TypeTransporter);
         generic_count -= 1;
@@ -207,7 +207,7 @@ Inventory::call_transporter(bool water) {
 }
 
 bool
-Inventory::call_out_serf(Serf *serf) {
+Inventory::call_out_serf(PSerf serf) {
   if (serfs[serf->get_type()] != serf->get_index()) {
     return false;
   }
@@ -220,22 +220,22 @@ Inventory::call_out_serf(Serf *serf) {
   return true;
 }
 
-Serf*
+PSerf
 Inventory::call_out_serf(Serf::Type type) {
   if (serfs[type] == 0) {
-    return NULL;
+    return nullptr;
   }
 
-  Serf *serf = game->get_serf(serfs[type]);
+  PSerf serf = get_game()->get_serf(serfs[type]);
   if (!call_out_serf(serf)) {
-    return NULL;
+    return nullptr;
   }
 
   return serf;
 }
 
 bool
-Inventory::call_internal(Serf *serf) {
+Inventory::call_internal(PSerf serf) {
   if (serfs[serf->get_type()] != serf->get_index()) {
     return false;
   }
@@ -245,20 +245,20 @@ Inventory::call_internal(Serf *serf) {
   return true;
 }
 
-Serf*
+PSerf
 Inventory::call_internal(Serf::Type type) {
   if (serfs[type] == 0) {
-    return NULL;
+    return nullptr;
   }
 
-  Serf *serf = game->get_serf(serfs[type]);
+  PSerf serf = get_game()->get_serf(serfs[type]);
   serfs[type] = 0;
 
   return serf;
 }
 
 bool
-Inventory::promote_serf_to_knight(Serf *serf) {
+Inventory::promote_serf_to_knight(PSerf serf) {
   if (serf->get_type() != Serf::TypeGeneric) {
     return false;
   }
@@ -278,12 +278,12 @@ Inventory::promote_serf_to_knight(Serf *serf) {
   return true;
 }
 
-Serf*
+PSerf
 Inventory::spawn_serf_generic() {
-  Serf *serf = game->get_player(owner)->spawn_serf_generic();
+  PSerf serf = owner.lock()->spawn_serf_generic();
 
-  if (serf != NULL) {
-    serf->init_generic(this);
+  if (serf) {
+    serf->init_generic(shared_from_this());
 
     generic_count++;
     if (serfs[Serf::TypeGeneric] == 0) {
@@ -326,7 +326,7 @@ Resource::Type res_needed[] = {
 };
 
 bool
-Inventory::specialize_serf(Serf *serf, Serf::Type type) {
+Inventory::specialize_serf(PSerf serf, Serf::Type type) {
   if (serf->get_type() != Serf::TypeGeneric) {
     return false;
   }
@@ -363,16 +363,16 @@ Inventory::specialize_serf(Serf *serf, Serf::Type type) {
   return true;
 }
 
-Serf*
+PSerf
 Inventory::specialize_free_serf(Serf::Type type) {
   if (serfs[Serf::TypeGeneric] == 0) {
-    return NULL;
+    return nullptr;
   }
 
-  Serf *serf = game->get_serf(serfs[Serf::TypeGeneric]);
+  PSerf serf = get_game()->get_serf(serfs[Serf::TypeGeneric]);
 
   if (!specialize_serf(serf, type)) {
-    return NULL;
+    return nullptr;
   }
 
   return serf;
@@ -393,12 +393,12 @@ Inventory::serf_potential_count(Serf::Type type) {
 }
 
 void
-Inventory::serf_idle_in_stock(Serf *serf) {
+Inventory::serf_idle_in_stock(PSerf serf) {
   serfs[serf->get_type()] = serf->get_index();
 }
 
 void
-Inventory::knight_training(Serf *serf, int p) {
+Inventory::knight_training(PSerf serf, int p) {
   Serf::Type old_type = serf->get_type();
   int r = serf->train_knight(p);
   if (r == 0) serfs[old_type] = 0;
@@ -410,14 +410,14 @@ SaveReaderBinary&
 operator >> (SaveReaderBinary &reader, Inventory &inventory) {
   uint8_t byte;
   reader >> byte;
-  inventory.owner = byte;  // 0
+  inventory.owner = inventory.get_game()->get_player(byte);  // 0
   reader >> byte;
   inventory.res_dir = byte;  // 1
   uint16_t word;
   reader >> word;  // 2
-  inventory.flag = word;
+  inventory.flag = inventory.get_game()->get_flag(word);
   reader >> word;  // 4
-  inventory.building = word;
+  inventory.building = inventory.get_game()->get_building(word);
 
   for (int j = 0; j < 26; j++) {
     reader >> word;  // 6 + 2*j
@@ -447,10 +447,16 @@ operator >> (SaveReaderBinary &reader, Inventory &inventory) {
 
 SaveReaderText&
 operator >> (SaveReaderText &reader, Inventory &inventory) {
-  reader.value("player") >> inventory.owner;
+  unsigned int owner_index;
+  reader.value("player") >> owner_index;
+  inventory.owner = inventory.get_game()->get_player(owner_index);
   reader.value("res_dir") >> inventory.res_dir;
-  reader.value("flag") >> inventory.flag;
-  reader.value("building") >> inventory.building;
+  unsigned int flag_index;
+  reader.value("flag") >> flag_index;
+  inventory.flag = inventory.get_game()->get_flag(flag_index);
+  unsigned int building_index;
+  reader.value("building") >> building_index;
+  inventory.building = inventory.get_game()->get_building(building_index);
 
   for (int i = 0; i < 2; i++) {
     reader.value("queue.type")[i] >> inventory.out_queue[i].type;
@@ -470,10 +476,10 @@ operator >> (SaveReaderText &reader, Inventory &inventory) {
 
 SaveWriterText&
 operator << (SaveWriterText &writer, Inventory &inventory) {
-  writer.value("player") << inventory.owner;
+  writer.value("player") << inventory.owner.lock()->get_index();
   writer.value("res_dir") << inventory.res_dir;
-  writer.value("flag") << inventory.flag;
-  writer.value("building") << inventory.building;
+  writer.value("flag") << inventory.flag.lock()->get_index();
+  writer.value("building") << inventory.building.lock()->get_index();
 
   for (int i = 0; i < 2; i++) {
     writer.value("queue.type") << inventory.out_queue[i].type;

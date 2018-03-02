@@ -39,12 +39,19 @@ typedef struct SerfPathInfo {
 #define FLAG_MAX_RES_COUNT  8
 
 class Building;
+typedef std::weak_ptr<Building> WBuilding;
 class Player;
+typedef std::shared_ptr<Player> PPlayer;
+typedef std::weak_ptr<Player> WPlayer;
 class SaveReaderBinary;
 class SaveReaderText;
 class SaveWriterText;
 
-class Flag : public GameObject {
+class Flag;
+typedef std::shared_ptr<Flag> PFlag;
+typedef std::weak_ptr<Flag> WFlag;
+
+class Flag : public GameObject, public std::enable_shared_from_this<Flag> {
  protected:
   class ResourceSlot {
    public:
@@ -54,9 +61,9 @@ class Flag : public GameObject {
   };
 
  protected:
-  unsigned int owner;
-  MapPos pos; /* ADDITION */
-  int path_con;
+  MapPos pos;
+  WPlayer owner;
+  int paths_;
   int endpoint;
   ResourceSlot slot[FLAG_MAX_RES_COUNT];
 
@@ -64,35 +71,33 @@ class Flag : public GameObject {
   Direction search_dir;
   int transporter;
   size_t length[6];
-  union other_endpoint {
-    Building *b[6];
-    Flag *f[6];
-    void *v[6];
-  } other_endpoint;
+  WBuilding other_endpoint_b[6];
+  WFlag other_endpoint_f[6];
   int other_end_dir[6];
 
   int bld_flags;
   int bld2_flags;
 
  public:
-  Flag(Game *game, unsigned int index);
+  Flag(PGame game, unsigned int index);
+  virtual ~Flag() {}
 
   MapPos get_position() const { return pos; }
   void set_position(MapPos pos) { this->pos = pos; }
 
   /* Bitmap of all directions with outgoing paths. */
-  int paths() const { return path_con & 0x3f; }
+  int paths() const { return paths_ & 0x3f; }
   void add_path(Direction dir, bool water);
   void del_path(Direction dir);
   /* Whether a path exists in a given direction. */
   bool has_path(Direction dir) const {
-    return ((path_con & (1 << (dir))) != 0); }
+    return ((paths_ & (1 << (dir))) != 0); }
 
-  void prioritize_pickup(Direction dir, Player *player);
+  void prioritize_pickup(Direction dir, PPlayer player);
 
   /* Owner of this flag. */
-  unsigned int get_owner() const { return owner; }
-  void set_owner(unsigned int _owner) { owner = _owner; }
+  PPlayer get_owner() const { return owner.lock(); }
+  void set_owner(PPlayer owner_) { owner = owner_; }
 
   /* Bitmap showing whether the outgoing paths are land paths. */
   int land_paths() const { return endpoint & 0x3f; }
@@ -139,8 +144,8 @@ class Flag : public GameObject {
   /* The direction from the other endpoint leading back to this flag. */
   Direction get_other_end_dir(Direction dir) const {
     return (Direction)((other_end_dir[dir] >> 3) & 7); }
-  Flag *get_other_end_flag(Direction dir) const {
-    return other_endpoint.f[dir]; }
+  PFlag get_other_end_flag(Direction dir) const {
+    return other_endpoint_f[dir].lock(); }
   /* Whether the given direction has a resource pickup scheduled. */
   bool is_scheduled(Direction dir) const {
     return (other_end_dir[dir] >> 7) & 1; }
@@ -172,22 +177,22 @@ class Flag : public GameObject {
   friend SaveWriterText&
     operator << (SaveWriterText &writer, Flag &flag);
 
-  bool schedule_known_dest_cb_(Flag *src, Flag *dest, int slot);
+  bool schedule_known_dest_cb_(PFlag src, PFlag dest, int slot);
 
-  void reset_transport(Flag *other);
+  void reset_transport(PFlag other);
 
   void reset_destination_of_stolen_resources();
 
-  void link_building(Building *building);
+  void link_building(PBuilding building);
   void unlink_building();
-  Building *get_building() { return other_endpoint.b[DirectionUpLeft]; }
+  PBuilding get_building() { return other_endpoint_b[DirectionUpLeft].lock(); }
 
   void invalidate_resource_path(Direction dir);
 
   int find_nearest_inventory_for_resource();
   int find_nearest_inventory_for_serf();
 
-  void link_with_flag(Flag *dest_flag, bool water_path, size_t length,
+  void link_with_flag(PFlag dest_flag, bool water_path, size_t length,
                       Direction in_dir, Direction out_dir);
 
   void update();
@@ -206,7 +211,7 @@ class Flag : public GameObject {
 
   void merge_paths(MapPos pos);
 
-  static void fill_path_serf_info(Game *game, MapPos pos, Direction dir,
+  static void fill_path_serf_info(PGame game, MapPos pos, Direction dir,
                                   SerfPathInfo *data);
 
  protected:
@@ -219,23 +224,23 @@ class Flag : public GameObject {
   friend class FlagSearch;
 };
 
-typedef bool flag_search_func(Flag *flag, void *data);
+typedef bool flag_search_func(PFlag flag, void *data);
 
 class FlagSearch {
  protected:
-  Game *game;
-  std::vector<Flag*> queue;
+  PGame game;
+  std::vector<PFlag> queue;
   int id;
 
  public:
-  explicit FlagSearch(Game *game);
+  explicit FlagSearch(PGame game);
 
   int get_id() { return id; }
-  void add_source(Flag *flag);
+  void add_source(PFlag flag);
   bool execute(flag_search_func *callback,
                bool land, bool transporter, void *data);
 
-  static bool single(Flag *src, flag_search_func *callback,
+  static bool single(PFlag src, flag_search_func *callback,
                      bool land, bool transporter, void *data);
 };
 

@@ -662,7 +662,7 @@ static const int map_building_frame_sprite[] = {
 };
 
 void
-Viewport::draw_building_unfinished(Building *building, Building::Type bld_type,
+Viewport::draw_building_unfinished(PBuilding building, Building::Type bld_type,
                                    int lx, int ly) {
   if (building->get_progress() == 0) { /* Draw cross */
     draw_shadow_and_building_sprite(lx, ly, 0x90);
@@ -696,7 +696,7 @@ Viewport::draw_building_unfinished(Building *building, Building::Type bld_type,
 }
 
 void
-Viewport::draw_ocupation_flag(Building *building, int lx, int ly, float mul) {
+Viewport::draw_ocupation_flag(PBuilding building, int lx, int ly, float mul) {
   if (building->has_knight()) {
     draw_game_sprite(lx, ly -
                      static_cast<int>(mul * building->get_knight_count()),
@@ -706,7 +706,7 @@ Viewport::draw_ocupation_flag(Building *building, int lx, int ly, float mul) {
 }
 
 void
-Viewport::draw_unharmed_building(Building *building, int lx, int ly) {
+Viewport::draw_unharmed_building(PBuilding building, int lx, int ly) {
   Random random;
 
   static const int pigfarm_anim[] = {
@@ -895,7 +895,7 @@ Viewport::draw_unharmed_building(Building *building, int lx, int ly) {
 }
 
 void
-Viewport::draw_burning_building(Building *building, int lx, int ly) {
+Viewport::draw_burning_building(PBuilding building, int lx, int ly) {
   const int building_anim_offset_from_type[] = {
     0, 10, 26, 39, 49, 62, 78, 97, 97, 116,
     129, 157, 167, 198, 211, 236, 255, 277, 305, 324,
@@ -1143,7 +1143,7 @@ Viewport::draw_burning_building(Building *building, int lx, int ly) {
 
 void
 Viewport::draw_building(MapPos pos, int lx, int ly) {
-  Building *building = interface->get_game()->get_building_at_pos(pos);
+  PBuilding building = interface->get_game()->get_building_at_pos(pos);
 
   if (building->is_burning()) {
     draw_burning_building(building, lx, ly);
@@ -1184,7 +1184,7 @@ Viewport::draw_water_waves_row(MapPos pos, int y_base, int cols,
 
 void
 Viewport::draw_flag_and_res(MapPos pos, int lx, int ly) {
-  Flag *flag = interface->get_game()->get_flag_at_pos(pos);
+  PFlag flag = interface->get_game()->get_flag_at_pos(pos);
 
   int res_pos[] = {  6, -4,
                     10, -2,
@@ -1202,8 +1202,7 @@ Viewport::draw_flag_and_res(MapPos pos, int lx, int ly) {
     }
   }
 
-  int pl_num = flag->get_owner();
-  Color player_color = interface->get_player_color(pl_num);
+  Color player_color = interface->get_player_color(flag->get_owner());
   int spr = 0x80 + ((interface->get_game()->get_tick() >> 3) & 3);
 
   draw_shadow_and_building_sprite(lx, ly, spr, player_color);
@@ -1356,7 +1355,7 @@ Viewport::draw_row_serf(int lx, int ly, bool shadow, const Color &color,
 /* Extracted from obsolete update_map_serf_rows(). */
 /* Translate serf type into the corresponding sprite code. */
 int
-Viewport::serf_get_body(Serf *serf) {
+Viewport::serf_get_body(PSerf serf) {
   const int transporter_type[] = {
     0, 0x3000, 0x3500, 0x3b00, 0x4100, 0x4600, 0x4b00, 0x1400,
     0x700, 0x5100, 0x800, 0x1c00, 0x1d00, 0x1e00, 0x1a00, 0x1b00,
@@ -1844,7 +1843,7 @@ Viewport::serf_get_body(Serf *serf) {
 }
 
 void
-Viewport::draw_active_serf(Serf *serf, MapPos pos, int x_base, int y_base) {
+Viewport::draw_active_serf(PSerf serf, MapPos pos, int x_base, int y_base) {
   const int arr_4[] = {
      9, 5,
     10, 7,
@@ -1903,7 +1902,7 @@ Viewport::draw_active_serf(Serf *serf, MapPos pos, int x_base, int y_base) {
       serf->get_state() == Serf::StateKnightAttackingDefeatFree) {
     int index = serf->get_attacking_def_index();
     if (index != 0) {
-      Serf *def_serf = interface->get_game()->get_serf(index);
+      PSerf def_serf = interface->get_game()->get_serf(index);
 
       Animation animation =
                            data_source->get_animation(def_serf->get_animation(),
@@ -1926,7 +1925,7 @@ Viewport::draw_active_serf(Serf *serf, MapPos pos, int x_base, int y_base) {
       animation.sprite >= 0x80 && animation.sprite < 0xc0) {
     int index = serf->get_attacking_def_index();
     if (index != 0) {
-      Serf *def_serf = interface->get_game()->get_serf(index);
+      PSerf def_serf = interface->get_game()->get_serf(index);
 
       if (serf->get_animation() >= 146 && serf->get_animation() < 156) {
         if ((serf->get_attacking_field_D() == 0 ||
@@ -2001,7 +2000,7 @@ Viewport::draw_serf_row(MapPos pos, int y_base, int cols, int x_base) {
 
     /* Active serf */
     if (map->has_serf(pos)) {
-      Serf *serf = interface->get_game()->get_serf_at_pos(pos);
+      PSerf serf = interface->get_game()->get_serf_at_pos(pos);
 
       if (serf->get_state() != Serf::StateMining ||
           (serf->get_mining_substate() != 3 &&
@@ -2027,7 +2026,7 @@ Viewport::draw_serf_row(MapPos pos, int y_base, int cols, int x_base) {
                        arr_1[pos & 0xf]) >> 3) & 0x7f];
       }
 
-      Color color = interface->get_player_color(map->get_owner(pos));
+      Color color = interface->get_player_color(interface->get_game()->get_player(map->get_owner(pos)));
       draw_row_serf(lx, ly, true, color, body);
     }
   }
@@ -2041,7 +2040,7 @@ Viewport::draw_serf_row_behind(MapPos pos, int y_base, int cols, int x_base) {
        i++, x_base += MAP_TILE_WIDTH, pos = map->move_right(pos)) {
     /* Active serf */
     if (map->has_serf(pos)) {
-      Serf *serf = interface->get_game()->get_serf_at_pos(pos);
+      PSerf serf = interface->get_game()->get_serf_at_pos(pos);
 
       if (serf->get_state() == Serf::StateMining &&
           (serf->get_mining_substate() == 3 ||
@@ -2367,7 +2366,7 @@ Viewport::handle_dbl_click(int lx, int ly, Event::Button button) {
 
   set_redraw();
 
-  Player *player = interface->get_player();
+  PPlayer player = interface->get_player();
 
   MapPos clk_pos = map_pos_from_screen_pix(lx, ly);
 
@@ -2411,7 +2410,7 @@ Viewport::handle_dbl_click(int lx, int ly, Event::Button button) {
 
       player->temp_index = map->get_obj_index(clk_pos);
     } else { /* Building */
-      Building *building = interface->get_game()->get_building_at_pos(clk_pos);
+      PBuilding building = interface->get_game()->get_building_at_pos(clk_pos);
       if ((building == nullptr) || building->is_burning()) {
         return false;
       }

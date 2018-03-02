@@ -340,8 +340,8 @@ PopupBox::draw_popup_icon(int x_, int y_, int sprite) {
 /* Draw building in a popup frame. */
 void
 PopupBox::draw_popup_building(int x_, int y_, int sprite) {
-  Player *player = interface->get_player();
-  Color color = interface->get_player_color(player->get_index());
+  PPlayer player = interface->get_player();
+  Color color = interface->get_player_color(player);
   frame->draw_sprite(8 * x_ + 8, y_ + 9,
                      Data::AssetMapObject, sprite, false, color);
 }
@@ -412,9 +412,9 @@ void
 PopupBox::draw_player_face(int ix, int iy, int player) {
   Color color;
   size_t face = 0;
-  Player *p = interface->get_game()->get_player(player);
-  if (p != nullptr) {
-    color = interface->get_player_color(player);
+  PPlayer p = interface->get_game()->get_player(player);
+  if (p) {
+    color = interface->get_player_color(p);
     face = p->get_face();
   }
 
@@ -746,7 +746,7 @@ PopupBox::draw_stat_4_box() {
 
 void
 PopupBox::draw_building_count(int x_, int y_, int type) {
-  Player *player = interface->get_player();
+  PPlayer player = interface->get_player();
   draw_green_number(x_, y_,
              player->get_completed_building_count((Building::Type)type));
   draw_additional_number(x_+1, y_,
@@ -951,9 +951,9 @@ PopupBox::draw_stat_8_box() {
   PGame game = interface->get_game();
   int index = game->get_player_history_index(scale);
   for (int i = 0; i < GAME_MAX_PLAYER_COUNT; i++) {
-    if (game->get_player(GAME_MAX_PLAYER_COUNT-i-1) != nullptr) {
-      Player *player = game->get_player(GAME_MAX_PLAYER_COUNT-i-1);
-      Color color = interface->get_player_color(GAME_MAX_PLAYER_COUNT-i-1);
+    PPlayer player = game->get_player(GAME_MAX_PLAYER_COUNT-i-1);
+    if (player) {
+      Color color = interface->get_player_color(player);
       draw_player_stat_chart(player->get_player_stat_history(mode), index,
                              color);
     }
@@ -1163,9 +1163,9 @@ PopupBox::draw_gauge_full(int lx, int ly, unsigned int value,
 }
 
 static void
-calculate_gauge_values(Player *player,
+calculate_gauge_values(PPlayer player,
                        unsigned int values[24][Building::kMaxStock][2]) {
-  for (Building *building : player->get_game()->get_player_buildings(player)) {
+  for (PBuilding building : player->get_game()->get_player_buildings(player)) {
     if (building->is_burning() || !building->has_serf()) {
       continue;
     }
@@ -1519,7 +1519,7 @@ PopupBox::draw_start_attack_box() {
                         building_layout[i]);
   }
 
-  Building *building = interface->get_game()->get_building(
+  PBuilding building = interface->get_game()->get_building(
                                     interface->get_player()->building_attacked);
   int ly = 0;
 
@@ -1637,7 +1637,7 @@ PopupBox::draw_sett_1_box() {
   draw_custom_bld_box(bld_layout);
   draw_custom_icon_box(layout);
 
-  Player *player = interface->get_player();
+  PPlayer player = interface->get_player();
 
   unsigned int prio_layout[] = {
     4,  21, Building::TypeStoneMine,
@@ -1674,7 +1674,7 @@ PopupBox::draw_sett_2_box() {
   draw_custom_bld_box(bld_layout);
   draw_custom_icon_box(layout);
 
-  Player *player = interface->get_player();
+  PPlayer player = interface->get_player();
 
   draw_slide_bar(0, 26, player->get_planks_construction());
   draw_slide_bar(0, 36, player->get_planks_boatbuilder());
@@ -1706,7 +1706,7 @@ PopupBox::draw_sett_3_box() {
   draw_custom_bld_box(bld_layout);
   draw_custom_icon_box(layout);
 
-  Player *player = interface->get_player();
+  PPlayer player = interface->get_player();
 
   draw_slide_bar(0, 39, player->get_coal_steelsmelter());
   draw_slide_bar(8, 39, player->get_coal_goldsmelter());
@@ -1750,7 +1750,7 @@ PopupBox::draw_knight_level_box() {
 
   draw_box_background(PatternCheckerdDiagonalBrown);
 
-  Player *player = interface->get_player();
+  PPlayer player = interface->get_player();
 
   for (int i = 0; i < 4; i++) {
     int ly = 8 + (34*i);
@@ -1785,7 +1785,7 @@ PopupBox::draw_sett_4_box() {
   draw_box_background(PatternCheckerdDiagonalBrown);
   draw_custom_icon_box(layout);
 
-  Player *player = interface->get_player();
+  PPlayer player = interface->get_player();
   draw_slide_bar(4, 4, player->get_tool_prio(0)); /* shovel */
   draw_slide_bar(4, 20, player->get_tool_prio(1)); /* hammer */
   draw_slide_bar(4, 36, player->get_tool_prio(5)); /* axe */
@@ -1940,7 +1940,7 @@ PopupBox::draw_castle_res_box() {
     return;
   }
 
-  Building *building =
+  PBuilding building =
        interface->get_game()->get_building(interface->get_player()->temp_index);
   if (building->is_burning()) {
     interface->close_popup();
@@ -1953,7 +1953,7 @@ PopupBox::draw_castle_res_box() {
     return;
   }
 
-  Inventory *inventory = building->get_inventory();
+  PInventory inventory = building->get_inventory();
   ResourceMap resources = inventory->get_all_resources();
   draw_resources_box(resources);
 }
@@ -1967,7 +1967,7 @@ PopupBox::draw_mine_output_box() {
     return;
   }
 
-  Building *building =
+  PBuilding building =
        interface->get_game()->get_building(interface->get_player()->temp_index);
   if (building->is_burning()) {
     interface->close_popup();
@@ -2041,7 +2041,7 @@ PopupBox::draw_ordered_building_box() {
     return;
   }
 
-  Building *building =
+  PBuilding building =
        interface->get_game()->get_building(interface->get_player()->temp_index);
   if (building->is_burning()) {
     interface->close_popup();
@@ -2075,19 +2075,19 @@ void
 PopupBox::draw_defenders_box() {
   draw_box_background(PatternPlaidAlongGreen);
 
-  Player *player = interface->get_player();
+  PPlayer player = interface->get_player();
   if (player->temp_index == 0) {
     interface->close_popup();
     return;
   }
 
-  Building *building = interface->get_game()->get_building(player->temp_index);
+  PBuilding building = interface->get_game()->get_building(player->temp_index);
   if (building->is_burning()) {
     interface->close_popup();
     return;
   }
 
-  if (building->get_owner() != player->get_index()) {
+  if (building->get_owner() != player) {
     interface->close_popup();
     return;
   }
@@ -2138,12 +2138,12 @@ PopupBox::draw_defenders_box() {
   /* Draw heading string */
   draw_green_string(3, 62, "Defenders:");
 
-  /* Draw knights */
-  int next_knight = building->get_first_knight();
-  for (int i = 0; next_knight != 0; i++) {
-    Serf *serf = interface->get_game()->get_serf(next_knight);
-    draw_popup_icon(3 + 4*(i%3), 72 + 16*(i/3), 7 + serf->get_type());
-    next_knight = serf->get_next();
+  // Draw knights
+  Building::ListSerfs knights = building->get_knights();
+  int i = 0;
+  for (PSerf knight : knights) {
+    draw_popup_icon(3 + 4*(i%3), 72 + 16*(i/3), 7 + knight->get_type());
+    i++;
   }
 
   draw_green_string(0, 128, "State:");
@@ -2173,7 +2173,7 @@ PopupBox::draw_transport_info_box() {
     return;
   }
 
-  Flag *flag =
+  PFlag flag =
            interface->get_game()->get_flag(interface->get_player()->temp_index);
 
 #if 1
@@ -2243,7 +2243,7 @@ PopupBox::draw_castle_serf_box() {
     return;
   }
 
-  Building *building =
+  PBuilding building =
        interface->get_game()->get_building(interface->get_player()->temp_index);
   if (building->is_burning()) {
     interface->close_popup();
@@ -2256,8 +2256,8 @@ PopupBox::draw_castle_serf_box() {
     return;
   }
 
-  Inventory *inventory = building->get_inventory();
-  for (Serf *serf : interface->get_game()->get_serfs_in_inventory(inventory)) {
+  PInventory inventory = building->get_inventory();
+  for (PSerf serf : interface->get_game()->get_serfs_in_inventory(inventory)) {
     serfs[serf->get_type()] += 1;
   }
 
@@ -2297,7 +2297,7 @@ PopupBox::draw_resdir_box() {
     return;
   }
 
-  Building *building =
+  PBuilding building =
        interface->get_game()->get_building(interface->get_player()->temp_index);
   if (building->is_burning()) {
     interface->close_popup();
@@ -2309,16 +2309,14 @@ PopupBox::draw_resdir_box() {
     int knights[] = { 0, 0, 0, 0, 0 };
     draw_custom_icon_box(knights_layout);
 
-    /* Follow linked list of knights on duty */
-    int serf_index = building->get_first_knight();
-    while (serf_index != 0) {
-      Serf *serf = interface->get_game()->get_serf(serf_index);
+    // Follow linked list of knights on duty
+    Building::ListSerfs serfs = building->get_knights();
+    for (PSerf serf : serfs) {
       Serf::Type serf_type = serf->get_type();
       if ((serf_type < Serf::TypeKnight0) || (serf_type > Serf::TypeKnight4)) {
         throw ExceptionFreeserf("Not a knight among the castle defenders.");
       }
       knights[serf_type-Serf::TypeKnight0] += 1;
-      serf_index = serf->get_next();
     }
 
     draw_green_number(14, 20, knights[4]);
@@ -2332,7 +2330,7 @@ PopupBox::draw_resdir_box() {
   }
 
   /* Draw resource mode checkbox */
-  Inventory *inventory = building->get_inventory();
+  PInventory inventory = building->get_inventory();
   Inventory::Mode res_mode = inventory->get_res_mode();
   if (res_mode == Inventory::ModeIn) { /* in */
     draw_popup_icon(9, 16, 0x120);
@@ -2377,7 +2375,7 @@ PopupBox::draw_sett_8_box() {
   draw_box_background(PatternCheckerdDiagonalBrown);
   draw_custom_icon_box(layout);
 
-  Player *player = interface->get_player();
+  PPlayer player = interface->get_player();
 
   draw_slide_bar(4, 12, player->get_serf_to_knight_rate());
   draw_green_string(8, 63, "%");
@@ -2395,7 +2393,7 @@ PopupBox::draw_sett_8_box() {
   }
 
   size_t convertible_to_knights = 0;
-  for (Inventory *inv : interface->get_game()->get_player_inventories(player)) {
+  for (PInventory inv : interface->get_game()->get_player_inventories(player)) {
     size_t c = std::min(inv->get_count_of(Resource::TypeSword),
                         inv->get_count_of(Resource::TypeShield));
     convertible_to_knights += std::max((size_t)0,
@@ -2514,7 +2512,7 @@ PopupBox::draw_building_stock_box() {
     return;
   }
 
-  Building *building = interface->get_game()->get_building(
+  PBuilding building = interface->get_game()->get_building(
                                            interface->get_player()->temp_index);
   if (building->is_burning()) {
     interface->close_popup();
@@ -2820,7 +2818,7 @@ PopupBox::move_sett_5_6_item(int up, int to_end) {
 void
 PopupBox::handle_send_geologist() {
   MapPos pos = interface->get_map_cursor_pos();
-  Flag *flag = interface->get_game()->get_flag_at_pos(pos);
+  PFlag flag = interface->get_game()->get_flag_at_pos(pos);
 
   if (!interface->get_game()->send_geologist(flag)) {
     play_sound(Audio::TypeSfxNotAccepted);
@@ -2843,17 +2841,17 @@ PopupBox::sett_8_train(int number) {
 
 void
 PopupBox::set_inventory_resource_mode(int mode) {
-  Building *building = interface->get_game()->get_building(
+  PBuilding building = interface->get_game()->get_building(
                                            interface->get_player()->temp_index);
-  Inventory *inventory = building->get_inventory();
+  PInventory inventory = building->get_inventory();
   interface->get_game()->set_inventory_resource_mode(inventory, mode);
 }
 
 void
 PopupBox::set_inventory_serf_mode(int mode) {
-  Building *building = interface->get_game()->get_building(
+  PBuilding building = interface->get_game()->get_building(
                                            interface->get_player()->temp_index);
-  Inventory *inventory = building->get_inventory();
+  PInventory inventory = building->get_inventory();
   interface->get_game()->set_inventory_serf_mode(inventory, mode);
 }
 
@@ -2861,7 +2859,7 @@ void
 PopupBox::handle_action(int action, int x_, int /*y_*/) {
   set_redraw();
 
-  Player *player = interface->get_player();
+  PPlayer player = interface->get_player();
 
   switch (action) {
   case ACTION_MINIMAP_CLICK:

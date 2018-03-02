@@ -70,8 +70,8 @@ NotificationBox::get_player_face_sprite(size_t face) {
 
 void
 NotificationBox::draw_player_face(int fx, int fy, int player) {
-  Player *p = interface->get_game()->get_player(player);
-  Color color = interface->get_player_color(player);
+  PPlayer p = interface->get_game()->get_player(player);
+  Color color = interface->get_player_color(p);
   frame->fill_rect(8 * fx, fy, 48, 72, color);
   draw_icon(fx + 1, fy + 4, get_player_face_sprite(p->get_face()));
 }

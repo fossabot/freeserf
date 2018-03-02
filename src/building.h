@@ -30,12 +30,25 @@
 #include "src/objects.h"
 
 class Inventory;
+typedef std::shared_ptr<Inventory> PInventory;
+typedef std::weak_ptr<Inventory> WInventory;
 class Serf;
+typedef std::shared_ptr<Serf> PSerf;
+typedef std::weak_ptr<Serf> WSerf;
 class SaveReaderBinary;
 class SaveReaderText;
 class SaveWriterText;
+class Player;
+typedef std::shared_ptr<Player> PPlayer;
+typedef std::weak_ptr<Player> WPlayer;
+class Flag;
+typedef std::shared_ptr<Flag> PFlag;
+typedef std::weak_ptr<Flag> WFlag;
 
-class Building : public GameObject {
+class Building : public GameObject, public std::enable_shared_from_this<Building> {
+ public:
+  typedef std::list<PSerf> ListSerfs;
+
  public:
   // Max number of different types of resources accepted by buildings.
   static const unsigned int kMaxStock = 3;
@@ -83,7 +96,7 @@ class Building : public GameObject {
   /* Type of building */
   Type type;
   /* Building owner */
-  unsigned int owner;
+  WPlayer owner;
   /* Building under construction */
   bool constructing;
   /* Flags */
@@ -95,31 +108,29 @@ class Building : public GameObject {
   bool active;
   bool holder;
   /* Index of flag connected to this building */
-  unsigned int flag;
+  WFlag flag;
   /* Stock of this building */
   Stock stock[kMaxStock];
-  unsigned int first_knight;
+  std::list<WSerf> knights;
   int burning_counter;
   int progress;
-  union u {
-    unsigned int tick; /* Used for burning building. */
-    unsigned int level;
-  } u;
-  Inventory *inventory;
+  WInventory inventory;
+  unsigned int tick; /* Used for burning building. */
+  unsigned int level;
 
  public:
-  Building(Game *game, unsigned int index);
+  Building(PGame game, unsigned int index);
+  virtual ~Building();
 
   MapPos get_position() const { return pos; }
   void set_position(MapPos position) { pos = position; }
 
-  unsigned int get_flag_index() const { return flag; }
-  void link_flag(unsigned int flag_index) { flag = flag_index; }
-  void unlink_flag() { flag = 0; }
+  PFlag get_flag() const { return flag.lock(); }
+  void link_flag(PFlag flag_) { flag = flag_; }
 
-  bool has_knight() const { return (first_knight != 0); }
-  unsigned int get_first_knight() const { return first_knight; }
-  void set_first_knight(unsigned int serf);
+  bool has_knight() const { return (knights.size() > 0); }
+  ListSerfs get_knights();
+  void set_first_knight(PSerf serf);
 
   int get_burning_counter() const { return burning_counter; }
   void set_burning_counter(int counter) { burning_counter = counter; }
@@ -132,8 +143,8 @@ class Building : public GameObject {
                                     (type == TypeFortress) ||
                                     (type == TypeCastle); }
   /* Owning player of the building. */
-  unsigned int get_owner() const { return owner; }
-  void set_owner(unsigned int new_owner) { owner = new_owner; }
+  PPlayer get_owner() const { return owner.lock(); }
+  void set_owner(PPlayer new_owner) { owner = new_owner; }
   /* Whether construction of the building is finished. */
   bool is_done() const { return !constructing; }
   bool is_leveling() const { return (!is_done() && progress == 0); }
@@ -164,21 +175,21 @@ class Building : public GameObject {
   /* Building has succesfully requested a serf. */
   void serf_request_granted() { serf_requested = true; }
   void requested_serf_lost();
-  void requested_serf_reached(Serf *serf);
+  void requested_serf_reached(PSerf serf);
   /* Building has requested a serf but none was available. */
   void clear_serf_request_failure() { serf_request_failed = false; }
   void knight_request_granted();
 
   /* Building has inventory and the inventory pointer is valid. */
-  bool has_inventory() const { return (inventory != nullptr); }
-  Inventory *get_inventory() { return inventory; }
-  void set_inventory(Inventory *inventory_) { inventory = inventory_; }
+  bool has_inventory() const { return !inventory.expired(); }
+  PInventory get_inventory() { return inventory.lock(); }
+  void set_inventory(PInventory inventory_) { inventory = inventory_; }
 
-  unsigned int get_level() const { return u.level; }
-  void set_level(unsigned int level) { u.level = level; }
+  unsigned int get_level() const { return level; }
+  void set_level(unsigned int level_) { level = level_; }
 
-  unsigned int get_tick() const { return u.tick; }
-  void set_tick(unsigned int tick) { u.tick = tick; }
+  unsigned int get_tick() const { return tick; }
+  void set_tick(unsigned int tick_) { tick = tick_; }
 
   unsigned int get_knight_count() const { return waiting_planks(); }
 
@@ -190,8 +201,8 @@ class Building : public GameObject {
 
   void cancel_transported_resource(Resource::Type res);
 
-  Serf *call_defender_out();
-  Serf *call_attacker_out(int knight_index);
+  PSerf call_defender_out();
+  PSerf call_attacker_out(bool strongest);
 
   bool add_requested_resource(Resource::Type res, bool fix_priority);
   bool is_stock_active(int stock_num) const {
@@ -235,7 +246,7 @@ class Building : public GameObject {
   void requested_knight_defeat_on_walk() {
     if (!has_inventory()) stock[0].requested -= 1; }
   bool is_enough_place_for_knight() const;
-  bool knight_come_back_from_fight(Serf *knight);
+  bool knight_come_back_from_fight(PSerf knight);
   void knight_occupy();
 
   void update_military_flag_state();
@@ -260,10 +271,12 @@ class Building : public GameObject {
 
   bool send_serf_to_building(Serf::Type type, Resource::Type res1,
                              Resource::Type res2);
+
+  void remove_knight(PSerf knight);
 };
 
+typedef std::shared_ptr<Building> PBuilding;
 
 int building_get_score_from_type(Building::Type type);
-
 
 #endif  // SRC_BUILDING_H_

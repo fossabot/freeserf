@@ -93,7 +93,7 @@ class Interface : public GuiObject, public GameManager::Handler {
 
   int sfx_queue[4];
 
-  Player *player;
+  PPlayer player;
   int config;
   int msg_flags;
 
@@ -115,7 +115,7 @@ class Interface : public GuiObject, public GameManager::Handler {
   PGame get_game() { return game; }
   void set_game(PGame game);
 
-  Color get_player_color(unsigned int player_index);
+  Color get_player_color(PPlayer player_);
 
   Viewport *get_viewport();
   PanelBar *get_panel_bar();
@@ -153,8 +153,8 @@ class Interface : public GuiObject, public GameManager::Handler {
   void return_from_message();
   void close_message();
 
-  Player *get_player() const { return player; }
-  void set_player(unsigned int player);
+  PPlayer get_player() const { return player; }
+  void set_player(PPlayer player);
   void update_map_cursor_pos(MapPos pos);
 
   bool is_building_road() const { return building_road.is_valid(); }
@@ -180,7 +180,7 @@ class Interface : public GuiObject, public GameManager::Handler {
   virtual bool handle_event(const Event *event);
 
  protected:
-  void get_map_cursor_type(const Player *player, MapPos pos,
+  void get_map_cursor_type(const PPlayer player, MapPos pos,
                            BuildPossibility *bld_possibility,
                            CursorType *cursor_type);
   void determine_map_cursor_type();

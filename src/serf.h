@@ -30,12 +30,20 @@
 #include "src/objects.h"
 
 class Flag;
+typedef std::shared_ptr<Flag> PFlag;
 class Inventory;
+typedef std::shared_ptr<Inventory> PInventory;
 class SaveReaderBinary;
 class SaveReaderText;
 class SaveWriterText;
+class Player;
+typedef std::shared_ptr<Player> PPlayer;
+typedef std::weak_ptr<Player> WPlayer;
 
-class Serf : public GameObject {
+class Serf;
+typedef std::shared_ptr<Serf> PSerf;
+
+class Serf : public GameObject, public std::enable_shared_from_this<Serf> {
  public:
   typedef enum Type {
     TypeNone = -1,
@@ -158,7 +166,7 @@ class Serf : public GameObject {
   } State;
 
  protected:
-  unsigned int owner;
+  WPlayer owner;
   Type type;
   bool sound;
   int animation; /* Index to animation table in data file. */
@@ -361,7 +369,7 @@ class Serf : public GameObject {
     /* States: idle_on_path, wait_idle_on_path,
        wake_at_flag, wake_on_path. */
     struct {
-      int flag; /* C */
+      unsigned int flag_index; /* C */
       int field_E; /* E */
       Direction rev_dir; /* B */
     } idle_on_path;
@@ -376,10 +384,10 @@ class Serf : public GameObject {
   } s;
 
  public:
-  Serf(Game *game, unsigned int index);
+  Serf(PGame game, unsigned int index);
 
-  unsigned int get_owner() const { return owner; }
-  void set_owner(unsigned int player_num) { owner = player_num; }
+  PPlayer get_owner() const { return owner.lock(); }
+  void set_owner(PPlayer owner_) { owner = owner_; }
 
   Type get_type() const { return type; }
   void set_type(Type type);
@@ -398,16 +406,16 @@ class Serf : public GameObject {
 
   void set_lost_state();
 
-  void add_to_defending_queue(unsigned int next_knight_index, bool pause);
-  void init_generic(Inventory *inventory);
-  void init_inventory_transporter(Inventory *inventory);
-  void reset_transport(Flag *flag);
+  void add_to_defending_queue(bool pause);
+  void init_generic(PInventory inventory);
+  void init_inventory_transporter(PInventory inventory);
+  void reset_transport(PFlag flag);
   bool path_splited(unsigned int flag_1, Direction dir_1,
                     unsigned int flag_2, Direction dir_2,
                     int *select);
   bool is_related_to(unsigned int dest, Direction dir);
   void path_deleted(unsigned int dest, Direction dir);
-  void path_merged(Flag *flag);
+  void path_merged(PFlag flag);
   void path_merged2(unsigned int flag_1, Direction dir_1,
                     unsigned int flag_2, Direction dir_2);
   void flag_deleted(MapPos flag_pos);
@@ -437,13 +445,10 @@ class Serf : public GameObject {
                                              return s.idle_in_stock.inv_index; }
   int get_mining_substate() const { return s.mining.substate; }
 
-  Serf *extract_last_knight_from_list();
-  void insert_before(Serf *knight);
   unsigned int get_next() const { return s.defending.next_knight; }
-  void set_next(int next) { s.defending.next_knight = next; }
 
   // Commands
-  void go_out_from_inventory(unsigned int inventory, MapPos dest, int mode);
+  void go_out_from_inventory(unsigned int inventory, unsigned int dest, int mode);
   void send_off_to_fight(int dist_col, int dist_row);
   void stay_idle_in_stock(unsigned int inventory);
   void go_out_from_building(MapPos dest, int dir, int field_B);
@@ -467,7 +472,7 @@ class Serf : public GameObject {
   int switch_waiting(Direction dir);
   int get_walking_animation(int h_diff, Direction dir, int switch_pos);
   void change_direction(Direction dir, int alt_end);
-  void transporter_move_to_flag(Flag *flag);
+  void transporter_move_to_flag(PFlag flag);
   void start_walking(Direction dir, int slope, int change_pos);
   void enter_building(int field_B, int join_pos);
   void leave_building(int join_pos);
@@ -475,9 +480,9 @@ class Serf : public GameObject {
   void drop_resource(Resource::Type res);
   void find_inventory();
   bool can_pass_map_pos(MapPos pos);
-  void set_fight_outcome(Serf *attacker, Serf *defender);
+  void set_fight_outcome(PSerf attacker, PSerf defender);
 
-  static bool handle_serf_walking_state_search_cb(Flag *flag, void *data);
+  static bool handle_serf_walking_state_search_cb(PFlag flag, void *data);
 
   void handle_serf_idle_in_stock_state();
   void handle_serf_walking_state_dest_reached();

@@ -262,7 +262,7 @@ AudioSDL::PlayerMIDI::play_track(int track_id) {
     }
     current_track = static_cast<TypeMidi>(track_id);
     Log::Info["audio:SDL_mixer"] << "Playing MIDI track: " << current_track;
-    track = Audio::Player::play_track(track_id);
+    track = Audio::AudioPlayer::play_track(track_id);
     track_id++;
   }
   return track;

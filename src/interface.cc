@@ -238,11 +238,11 @@ Interface::close_message() {
 
 /* Return the cursor type and various related values of a MapPos. */
 void
-Interface::get_map_cursor_type(const Player *player_, MapPos pos,
+Interface::get_map_cursor_type(const PPlayer player_, MapPos pos,
                                BuildPossibility *bld_possibility,
                                CursorType *cursor_type) {
   PMap map = game->get_map();
-  if (player_ == nullptr) {
+  if (!player_) {
     *bld_possibility = BuildPossibilityNone;
     *cursor_type = CursorTypeClear;
     return;
@@ -299,7 +299,7 @@ Interface::get_map_cursor_type(const Player *player_, MapPos pos,
   } else if ((map->get_obj(pos) == Map::ObjectSmallBuilding ||
               map->get_obj(pos) == Map::ObjectLargeBuilding) &&
              map->get_owner(pos) == player_->get_index()) {
-    Building *bld = game->get_building_at_pos(pos);
+    PBuilding bld = game->get_building_at_pos(pos);
     if (!bld->is_burning()) {
       *cursor_type = CursorTypeBuilding;
     } else {
@@ -451,7 +451,7 @@ Interface::set_game(PGame new_game) {
 }
 
 void
-Interface::set_player(unsigned int player_index) {
+Interface::set_player(PPlayer new_player) {
   if (panel != nullptr) {
     del_float(panel);
     delete panel;
@@ -462,22 +462,20 @@ Interface::set_player(unsigned int player_index) {
     return;
   }
 
-  if ((player != nullptr) && (player_index == player->get_index())) {
+  if (player && (new_player == player)) {
     return;
   }
-
-  player = game->get_player(player_index);
 
   /* Move viewport to initial position */
   MapPos init_pos = game->get_map()->pos(0, 0);
 
-  if (player != NULL) {
+  if (player) {
     panel = new PanelBar(this);
     panel->set_displayed(true);
     add_float(panel, 0, 0);
     layout();
 
-    for (Building *building : game->get_player_buildings(player)) {
+    for (PBuilding building : game->get_player_buildings(player)) {
       if (building->get_type() == Building::TypeCastle) {
         init_pos = building->get_position();
       }
@@ -489,8 +487,8 @@ Interface::set_player(unsigned int player_index) {
 }
 
 Color
-Interface::get_player_color(unsigned int player_index) {
-  Player::Color player_color = game->get_player(player_index)->get_color();
+Interface::get_player_color(PPlayer player_) {
+  Player::Color player_color = player_->get_color();
   Color color(player_color.red, player_color.green, player_color.blue);
   return color;
 }
@@ -626,7 +624,7 @@ Interface::demolish_object() {
     play_sound(Audio::TypeSfxClick);
     game->demolish_flag(map_cursor_pos, player);
   } else if (map_cursor_type == CursorTypeBuilding) {
-    Building *building = game->get_building_at_pos(map_cursor_pos);
+    PBuilding building = game->get_building_at_pos(map_cursor_pos);
 
     if (building->is_done() &&
         (building->get_type() == Building::TypeHut ||
@@ -881,9 +879,9 @@ Interface::handle_key_pressed(char key, int modifier) {
       break;
     }
     case 'j': {
-      unsigned int index = game->get_next_player(player)->get_index();
-      set_player(index);
-      Log::Debug["main"] << "Switched to player #" << index;
+      PPlayer next_player = game->get_next_player(player);
+      set_player(next_player);
+      Log::Debug["main"] << "Switched to player #" << next_player->get_index();
       break;
     }
     case 'z':

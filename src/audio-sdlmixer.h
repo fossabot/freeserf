@@ -56,7 +56,7 @@ class AudioSDL : public Audio, public Audio::VolumeController {
     virtual void play();
   };
 
-  class PlayerSFX : public Audio::Player,
+  class PlayerSFX : public Audio::AudioPlayer,
                     public Audio::VolumeController,
                     public std::enable_shared_from_this<PlayerSFX> {
    public:
@@ -88,7 +88,7 @@ class AudioSDL : public Audio, public Audio::VolumeController {
     virtual void play();
   };
 
-  class PlayerMIDI : public Audio::Player,
+  class PlayerMIDI : public Audio::AudioPlayer,
                      public Audio::VolumeController,
                      public std::enable_shared_from_this<PlayerMIDI> {
    protected:

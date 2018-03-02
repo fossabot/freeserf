@@ -110,15 +110,15 @@ class Audio {
   };
   typedef std::shared_ptr<Track> PTrack;
 
-  class Player {
+  class AudioPlayer {
    protected:
     typedef std::map<int, PTrack> TrackCache;
     TrackCache track_cache;
     bool enabled;
 
    public:
-    Player();
-    virtual ~Player();
+    AudioPlayer();
+    virtual ~AudioPlayer();
 
     virtual PTrack play_track(int track_id);
     virtual void enable(bool enable) = 0;
@@ -129,7 +129,7 @@ class Audio {
     virtual PTrack create_track(int track_id) = 0;
     virtual void stop() = 0;
   };
-  typedef std::shared_ptr<Player> PPlayer;
+  typedef std::shared_ptr<AudioPlayer> PPlayer;
 
  protected:
   static Audio *instance;

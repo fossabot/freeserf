@@ -43,21 +43,6 @@
 #define GROUND_ANALYSIS_RADIUS  25
 
 Game::Game() {
-  players = Players(this);
-  flags = Flags(this);
-  inventories = Inventories(this);
-  buildings = Buildings(this);
-  serfs = Serfs(this);
-
-  /* Create NULL-serf */
-  serfs.allocate();
-
-  /* Create NULL-building (index 0 is undefined) */
-  buildings.allocate();
-
-  /* Create NULL-flag (index 0 is undefined) */
-  flags.allocate();
-
   /* Initialize global lookup tables */
   game_speed = DEFAULT_GAME_SPEED;
 
@@ -102,34 +87,34 @@ Game::~Game() {
    serf again. */
 void
 Game::clear_serf_request_failure() {
-  for (Building *building : buildings) {
+  for (PBuilding building : buildings) {
     building->clear_serf_request_failure();
   }
 
-  for (Flag *flag : flags) {
+  for (PFlag flag : flags) {
     flag->serf_request_clear();
   }
 }
 
 void
 Game::update_knight_morale() {
-  for (Player *player : players) {
+  for (PPlayer player : players) {
     player->update_knight_morale();
   }
 }
 
 typedef struct UpdateInventoriesData {
   Resource::Type resource;
-  int *max_prio;
-  Flag **flags;
+  std::vector<int> max_prio;
+  std::vector<PFlag> flags;
 } UpdateInventoriesData;
 
 bool
-Game::update_inventories_cb(Flag *flag, void *d) {
+Game::update_inventories_cb(PFlag flag, void *d) {
   UpdateInventoriesData *data = reinterpret_cast<UpdateInventoriesData*>(d);
   int inv = flag->get_search_dir();
   if (data->max_prio[inv] < 255 && flag->has_building()) {
-    Building *building = flag->get_building();
+    PBuilding building = flag->get_building();
 
     int bld_prio = building->get_max_priority_for_resource(data->resource, 16);
     if (bld_prio > data->max_prio[inv]) {
@@ -203,12 +188,11 @@ Game::update_inventories() {
   }
 
   while (arr[0] != Resource::TypeNone) {
-    for (Player *player : players) {
-      Inventory *invs[256];
+    for (PPlayer player : players) {
+      PInventory invs[256];
       int n = 0;
-      for (Inventory *inventory : inventories) {
-        if (inventory->get_owner() == player->get_index() &&
-            !inventory->is_queue_full()) {
+      for (PInventory inventory : inventories) {
+        if (inventory->get_owner() == player && !inventory->is_queue_full()) {
           Inventory::Mode res_dir = inventory->get_res_mode();
           if (res_dir == Inventory::ModeIn || res_dir == Inventory::ModeStop) {
             if (arr[0] == Resource::GroupFood) {
@@ -240,39 +224,37 @@ Game::update_inventories() {
 
       if (n == 0) continue;
 
-      FlagSearch search(this);
+      FlagSearch search(shared_from_this());
 
-      int max_prio[256];
-      Flag *flags_[256];
+      UpdateInventoriesData data;
+      data.resource = arr[0];
+      data.flags.resize(n);
 
       for (int i = 0; i < n; i++) {
-        max_prio[i] = 0;
-        flags_[i] = NULL;
-        Flag *flag = flags[invs[i]->get_flag_index()];
+        data.max_prio.push_back(0);
+        PFlag flag = invs[i]->get_flag();
         flag->set_search_dir((Direction)i);
         search.add_source(flag);
       }
 
-      UpdateInventoriesData data;
-      data.resource = arr[0];
-      data.max_prio = max_prio;
-      data.flags = flags_;
       search.execute(update_inventories_cb, false, true, &data);
 
-      for (int i = 0; i < n; i++) {
-        if (max_prio[i] > 0) {
+      int i = 0;
+      for (int max_prio : data.max_prio) {
+        if (max_prio > 0) {
           Log::Verbose["game"] << " dest for inventory " << i << "found";
           Resource::Type res = (Resource::Type)arr[0];
 
-          Building *dest_bld = flags_[i]->get_building();
+          PBuilding dest_bld = data.flags[i]->get_building();
           if (!dest_bld->add_requested_resource(res, false)) {
             throw ExceptionFreeserf("Failed to request resource.");
           }
 
           /* Put resource in out queue */
-          Inventory *src_inv = invs[i];
-          src_inv->add_to_queue(res, dest_bld->get_flag_index());
+          PInventory src_inv = invs[i];
+          src_inv->add_to_queue(res, dest_bld->get_flag()->get_index());
         }
+        i++;
       }
     }
     arr += 1;
@@ -282,14 +264,14 @@ Game::update_inventories() {
 /* Update flags as part of the game progression. */
 void
 Game::update_flags() {
-  for (Flag *flag : flags) {
+  for (PFlag flag : flags) {
     flag->update();
   }
 }
 
 typedef struct SendSerfToFlagData {
-  Inventory *inventory;
-  Building *building;
+  PInventory inventory;
+  PBuilding building;
   int serf_type;
   int dest_index;
   Resource::Type res1;
@@ -297,7 +279,7 @@ typedef struct SendSerfToFlagData {
 } SendSerfToFlagData;
 
 bool
-Game::send_serf_to_flag_search_cb(Flag *flag, void *d) {
+Game::send_serf_to_flag_search_cb(PFlag flag, void *d) {
   if (!flag->has_inventory()) {
     return false;
   }
@@ -305,8 +287,8 @@ Game::send_serf_to_flag_search_cb(Flag *flag, void *d) {
   SendSerfToFlagData *data = reinterpret_cast<SendSerfToFlagData*>(d);
 
   /* Inventory reached */
-  Building *building = flag->get_building();
-  Inventory *inv = building->get_inventory();
+  PBuilding building = flag->get_building();
+  PInventory inv = building->get_inventory();
 
   int type = data->serf_type;
   if (type < 0) {
@@ -320,13 +302,13 @@ Game::send_serf_to_flag_search_cb(Flag *flag, void *d) {
 
     if (knight_type >= 0) {
       /* Knight of appropriate type was found. */
-      Serf *serf =
+      PSerf serf =
               inv->call_out_serf((Serf::Type)(Serf::TypeKnight0+knight_type));
 
       data->building->knight_request_granted();
 
       serf->go_out_from_inventory(inv->get_index(),
-                                  data->building->get_flag_index(), -1);
+                                  data->building->get_flag()->get_index(), -1);
 
       return true;
     } else if (type == -1) {
@@ -341,7 +323,7 @@ Game::send_serf_to_flag_search_cb(Flag *flag, void *d) {
   } else {
     if (inv->have_serf((Serf::Type)type)) {
       if (type != Serf::TypeGeneric || inv->free_serf_count() > 4) {
-        Serf *serf = inv->call_out_serf((Serf::Type)type);
+        PSerf serf = inv->call_out_serf((Serf::Type)type);
 
         int mode = 0;
 
@@ -350,7 +332,7 @@ Game::send_serf_to_flag_search_cb(Flag *flag, void *d) {
         } else if (type == Serf::TypeGeologist) {
           mode = 6;
         } else {
-          Building *dest_bld =
+          PBuilding dest_bld =
                     flag->get_game()->flags[data->dest_index]->get_building();
           dest_bld->serf_request_granted();
           mode = -1;
@@ -378,16 +360,16 @@ Game::send_serf_to_flag_search_cb(Flag *flag, void *d) {
 
 /* Dispatch serf from (nearest?) inventory to flag. */
 bool
-Game::send_serf_to_flag(Flag *dest, Serf::Type type, Resource::Type res1,
+Game::send_serf_to_flag(PFlag dest, Serf::Type type, Resource::Type res1,
                         Resource::Type res2) {
-  Building *building = NULL;
+  PBuilding building;
   if (dest->has_building()) {
     building = dest->get_building();
   }
 
   /* If type is negative, building is non-NULL. */
-  if ((type < 0) && (building != NULL)) {
-    Player *player = players[building->get_owner()];
+  if ((type < 0) && building) {
+    PPlayer player = building->get_owner();
     type = player->get_cycling_serf_type(type);
   }
 
@@ -404,8 +386,8 @@ Game::send_serf_to_flag(Flag *dest, Serf::Type type, Resource::Type res1,
   if (!r) {
     return false;
   } else if (data.inventory != NULL) {
-    Inventory *inventory = data.inventory;
-    Serf *serf = inventory->call_out_serf(Serf::TypeGeneric);
+    PInventory inventory = data.inventory;
+    PSerf serf = inventory->call_out_serf(Serf::TypeGeneric);
 
     if ((type < 0) && (building != NULL)) {
       /* Knight */
@@ -413,7 +395,7 @@ Game::send_serf_to_flag(Flag *dest, Serf::Type type, Resource::Type res1,
 
       serf->set_type(Serf::TypeKnight0);
       serf->go_out_from_inventory(inventory->get_index(),
-                                  building->get_flag_index(), -1);
+                                  building->get_flag()->get_index(), -1);
 
       inventory->pop_resource(Resource::TypeSword);
       inventory->pop_resource(Resource::TypeShield);
@@ -447,7 +429,7 @@ Game::send_serf_to_flag(Flag *dest, Serf::Type type, Resource::Type res1,
 
 /* Dispatch geologist to flag. */
 bool
-Game::send_geologist(Flag *dest) {
+Game::send_geologist(PFlag dest) {
   return send_serf_to_flag(dest, Serf::TypeGeologist, Resource::TypeHammer,
                            Resource::TypeNone);
 }
@@ -457,7 +439,7 @@ void
 Game::update_buildings() {
   Buildings::Iterator i = buildings.begin();
   while (i != buildings.end()) {
-    Building *building = *i;
+    PBuilding building = *i;
     ++i;
     building->update(tick);
   }
@@ -468,7 +450,7 @@ void
 Game::update_serfs() {
   Serfs::Iterator i = serfs.begin();
   while (i != serfs.end()) {
-    Serf *serf = *i;
+    PSerf serf = *i;
     ++i;
     if (serf->get_index() != 0) {
       serf->update();
@@ -567,7 +549,7 @@ Game::update_game_stats() {
     std::map<unsigned int, unsigned int> values;
 
     /* Store land area stats in history. */
-    for (Player *player : players) {
+    for (PPlayer player : players) {
       values[player->get_index()] = player->get_land_area();
     }
     record_player_history(update_level, 1, player_history_index, values);
@@ -575,20 +557,20 @@ Game::update_game_stats() {
     player_score_leader |= BIT(calculate_clear_winner(values));
 
     /* Store building stats in history. */
-    for (Player *player : players) {
+    for (PPlayer player : players) {
       values[player->get_index()] = player->get_building_score();
     }
     record_player_history(update_level, 2, player_history_index, values);
 
     /* Store military stats in history. */
-    for (Player *player : players) {
+    for (PPlayer player : players) {
       values[player->get_index()] = player->get_military_score();
     }
     record_player_history(update_level, 3, player_history_index, values);
     player_score_leader |= BIT(calculate_clear_winner(values)) << 4;
 
     /* Store condensed score of all aspects in history. */
-    for (Player *player : players) {
+    for (PPlayer player : players) {
       values[player->get_index()] = player->get_score();
     }
     record_player_history(update_level, 0, player_history_index, values);
@@ -604,7 +586,7 @@ Game::update_game_stats() {
     int index = resource_history_index;
 
     for (int res = 0; res < 26; res++) {
-      for (Player *player : players) {
+      for (PPlayer player : players) {
         player->update_stats(res);
       }
     }
@@ -628,7 +610,7 @@ Game::update() {
   map->update(tick, &init_map_rnd);
 
   /* Update players */
-  for (Player *player : players) {
+  for (PPlayer player : players) {
     player->update();
   }
 
@@ -792,7 +774,7 @@ Game::road_segment_in_water(MapPos pos, Direction dir) const {
    This will return success even if the destination does _not_ contain
    a flag, and therefore partial paths can be validated with this function. */
 int
-Game::can_build_road(const Road &road, const Player *player, MapPos *dest,
+Game::can_build_road(const Road &road, const PPlayer player, MapPos *dest,
                      bool *water) const {
   /* Follow along path to other flag. Test along the way
      whether the path is on ground or in water. */
@@ -844,7 +826,7 @@ Game::can_build_road(const Road &road, const Player *player, MapPos *dest,
 
 /* Construct a road spefified by a source and a list of directions. */
 bool
-Game::build_road(const Road &road, const Player *player) {
+Game::build_road(const Road &road, const PPlayer player) {
   if (road.get_length() == 0) return false;
 
   MapPos dest = 0;
@@ -862,8 +844,8 @@ Game::build_road(const Road &road, const Player *player) {
   if (!map->place_road_segments(road)) return false;
 
   /* Connect flags */
-  Flag *src_flag = get_flag_at_pos(road.get_source());
-  Flag *dest_flag = get_flag_at_pos(dest);
+  PFlag src_flag = get_flag_at_pos(road.get_source());
+  PFlag dest_flag = get_flag_at_pos(dest);
 
   src_flag->link_with_flag(dest_flag, water_path, road.get_length(),
                            in_dir, out_dir);
@@ -872,26 +854,26 @@ Game::build_road(const Road &road, const Player *player) {
 }
 
 void
-Game::flag_reset_transport(Flag *flag) {
+Game::flag_reset_transport(PFlag flag) {
   /* Clear destination for any serf with resources for this flag. */
-  for (Serf *serf : serfs) {
+  for (PSerf serf : serfs) {
     serf->reset_transport(flag);
   }
 
   /* Flag. */
-  for (Flag *other_flag : flags) {
+  for (PFlag other_flag : flags) {
     flag->reset_transport(other_flag);
   }
 
   /* Inventories. */
-  for (Inventory *inventory : inventories) {
+  for (PInventory inventory : inventories) {
     inventory->reset_queue_for_dest(flag);
   }
 }
 
 void
-Game::building_remove_player_refs(Building *building) {
-  for (Player *player : players) {
+Game::building_remove_player_refs(PBuilding building) {
+  for (PPlayer player : players) {
     if (player->temp_index == building->get_index()) {
       player->temp_index = 0;
     }
@@ -901,7 +883,7 @@ Game::building_remove_player_refs(Building *building) {
 bool
 Game::path_serf_idle_to_wait_state(MapPos pos) {
   /* Look through serf array for the corresponding serf. */
-  for (Serf *serf : serfs) {
+  for (PSerf serf : serfs) {
     if (serf->idle_to_wait_state(pos)) {
       return true;
     }
@@ -920,12 +902,11 @@ Game::remove_road_forwards(MapPos pos, Direction dir) {
     }
 
     if (map->has_serf(pos)) {
-      Serf *serf = get_serf_at_pos(pos);
+      PSerf serf = get_serf_at_pos(pos);
       if (!map->has_flag(pos)) {
         serf->set_lost_state();
       } else {
-        /* Handle serf close to flag, where
-           it should only be lost if walking
+        /* Handle serf close to flag, where it should only be lost if walking
            in the wrong direction. */
         int d = serf->get_walking_dir();
         if (d < 0) d += 6;
@@ -936,7 +917,7 @@ Game::remove_road_forwards(MapPos pos, Direction dir) {
     }
 
     if (map->has_flag(pos)) {
-      Flag *flag = flags[map->get_obj_index(pos)];
+      PFlag flag = flags[map->get_obj_index(pos)];
       flag->del_path(reverse_direction(in_dir));
       break;
     }
@@ -989,7 +970,7 @@ Game::demolish_road_(MapPos pos) {
 
 /* Demolish road at position. */
 bool
-Game::demolish_road(MapPos pos, Player *player) {
+Game::demolish_road(MapPos pos, PPlayer player) {
   if (!can_demolish_road(pos, player)) return false;
 
   return demolish_road_(pos);
@@ -1027,15 +1008,15 @@ Game::build_flag_split_path(MapPos pos) {
   SerfPathInfo path_1_data;
   SerfPathInfo path_2_data;
 
-  Flag::fill_path_serf_info(this, pos, path_1_dir, &path_1_data);
-  Flag::fill_path_serf_info(this, pos, path_2_dir, &path_2_data);
+  Flag::fill_path_serf_info(shared_from_this(), pos, path_1_dir, &path_1_data);
+  Flag::fill_path_serf_info(shared_from_this(), pos, path_2_dir, &path_2_data);
 
-  Flag *flag_2 = flags[path_2_data.flag_index];
+  PFlag flag_2 = flags[path_2_data.flag_index];
   Direction dir_2 = path_2_data.flag_dir;
 
   int select = -1;
   if (flag_2->serf_requested(dir_2)) {
-    for (Serf *serf : serfs) {
+    for (PSerf serf : serfs) {
       if (serf->path_splited(path_1_data.flag_index, path_1_data.flag_dir,
                              path_2_data.flag_index, path_2_data.flag_dir,
                              &select)) {
@@ -1046,11 +1027,11 @@ Game::build_flag_split_path(MapPos pos) {
     SerfPathInfo *path_data = &path_1_data;
     if (select == 0) path_data = &path_2_data;
 
-    Flag *selected_flag = flags[path_data->flag_index];
+    PFlag selected_flag = flags[path_data->flag_index];
     selected_flag->cancel_serf_request(path_data->flag_dir);
   }
 
-  Flag *flag = flags[map->get_obj_index(pos)];
+  PFlag flag = flags[map->get_obj_index(pos)];
 
   flag->restore_path_serf_info(path_1_dir, &path_1_data);
   flag->restore_path_serf_info(path_2_dir, &path_2_data);
@@ -1058,7 +1039,7 @@ Game::build_flag_split_path(MapPos pos) {
 
 /* Check whether player can build flag at pos. */
 bool
-Game::can_build_flag(MapPos pos, const Player *player) const {
+Game::can_build_flag(MapPos pos, const PPlayer player) const {
   /* Check owner of land */
   if (!map->has_owner(pos) || map->get_owner(pos) != player->get_index()) {
     return false;
@@ -1091,15 +1072,17 @@ Game::can_build_flag(MapPos pos, const Player *player) const {
 
 /* Build flag at pos. */
 bool
-Game::build_flag(MapPos pos, Player *player) {
+Game::build_flag(MapPos pos, PPlayer player) {
   if (!can_build_flag(pos, player)) {
     return false;
   }
 
-  Flag *flag = flags.allocate();
-  if (flag == NULL) return false;
+  PFlag flag = flags.allocate();
+  if (!flag) {
+    return false;
+  }
 
-  flag->set_owner(player->get_index());
+  flag->set_owner(player);
   flag->set_position(pos);
   map->set_object(pos, Map::ObjectFlag, flag->get_index());
 
@@ -1118,7 +1101,7 @@ Game::can_build_military(MapPos pos) const {
     MapPos p = map->pos_add_spirally(pos, i);
     if (map->get_obj(p) >= Map::ObjectSmallBuilding &&
         map->get_obj(p) <= Map::ObjectCastle) {
-      const Building *bld = buildings[map->get_obj_index(p)];
+      const PBuilding bld = buildings[map->get_obj_index(p)];
       if (bld->is_military()) {
         return false;
       }
@@ -1146,7 +1129,7 @@ Game::get_leveling_height(MapPos pos) const {
   for (int i = 0; i < 18; i++) {
     MapPos p = map->pos_add_spirally(pos, 19+i);
     if (map->get_obj(p) == Map::ObjectLargeBuilding) {
-      const Building *bld = buildings[map->get_obj_index(p)];
+      const PBuilding bld = buildings[map->get_obj_index(p)];
       if (bld->is_leveling()) { /* Leveling in progress */
         int h = bld->get_level();
         if (h_min > h) h_min = h;
@@ -1264,7 +1247,7 @@ Game::can_build_large(MapPos pos) const {
 
 /* Checks whether a castle can be built by player at position. */
 bool
-Game::can_build_castle(MapPos pos, const Player *player) const {
+Game::can_build_castle(MapPos pos, const PPlayer player) const {
   if (player->has_castle()) return false;
 
   /* Check owner of land around position */
@@ -1301,7 +1284,7 @@ Game::can_build_castle(MapPos pos, const Player *player) const {
    can be built after the existing building has been
    demolished. */
 bool
-Game::can_player_build(MapPos pos, const Player *player) const {
+Game::can_player_build(MapPos pos, const PPlayer player) const {
   if (!player->has_castle()) return false;
 
   /* Check owner of land around position */
@@ -1332,8 +1315,10 @@ Game::can_player_build(MapPos pos, const Player *player) const {
    position. */
 bool
 Game::can_build_building(MapPos pos, Building::Type type,
-                         const Player *player) const {
-  if (!can_player_build(pos, player)) return false;
+                         const PPlayer player) const {
+  if (!can_player_build(pos, player)) {
+    return false;
+  }
 
   /* Check that space is clear */
   if (Map::map_space_from_obj[map->get_obj(pos)] != Map::SpaceOpen) {
@@ -1396,7 +1381,7 @@ Game::can_build_building(MapPos pos, Building::Type type,
 
 /* Build building at position. */
 bool
-Game::build_building(MapPos pos, Building::Type type, Player *player) {
+Game::build_building(MapPos pos, Building::Type type, PPlayer player) {
   if (!can_build_building(pos, type, player)) {
     return false;
   }
@@ -1405,13 +1390,13 @@ Game::build_building(MapPos pos, Building::Type type, Player *player) {
     /* TODO Check that more stocks are allowed to be built */
   }
 
-  Building *bld = buildings.allocate();
-  if (bld == NULL) {
+  PBuilding bld = buildings.allocate();
+  if (!bld) {
     return false;
   }
 
-  Flag *flag = get_flag_at_pos(map->move_down_right(pos));
-  if (flag == NULL) {
+  PFlag flag = get_flag_at_pos(map->move_down_right(pos));
+  if (!flag) {
     if (!build_flag(map->move_down_right(pos), player)) {
       buildings.erase(bld->get_index());
       return false;
@@ -1427,7 +1412,7 @@ Game::build_building(MapPos pos, Building::Type type, Player *player) {
 
   bool split_path = false;
   if (map->get_obj(map->move_down_right(pos)) != Map::ObjectFlag) {
-    flag->set_owner(player->get_index());
+    flag->set_owner(player);
     split_path = (map->paths(map->move_down_right(pos)) != 0);
   } else {
     flg_index = map->get_obj_index(map->move_down_right(pos));
@@ -1436,7 +1421,7 @@ Game::build_building(MapPos pos, Building::Type type, Player *player) {
 
   flag->set_position(map->move_down_right(pos));
 
-  bld->link_flag(flg_index);
+  bld->link_flag(flag);
   flag->link_building(bld);
 
   flag->clear_flags();
@@ -1458,24 +1443,24 @@ Game::build_building(MapPos pos, Building::Type type, Player *player) {
 
 /* Build castle at position. */
 bool
-Game::build_castle(MapPos pos, Player *player) {
+Game::build_castle(MapPos pos, PPlayer player) {
   if (!can_build_castle(pos, player)) {
     return false;
   }
 
-  Inventory *inventory = inventories.allocate();
-  if (inventory == NULL) {
+  PInventory inventory = inventories.allocate();
+  if (!inventory) {
     return false;
   }
 
-  Building *castle = buildings.allocate();
-  if (castle == NULL) {
+  PBuilding castle = buildings.allocate();
+  if (!castle) {
     inventories.erase(inventory->get_index());
     return false;
   }
 
-  Flag *flag = flags.allocate();
-  if (flag == NULL) {
+  PFlag flag = flags.allocate();
+  if (!flag) {
     buildings.erase(castle->get_index());
     inventories.erase(inventory->get_index());
     return false;
@@ -1483,9 +1468,9 @@ Game::build_castle(MapPos pos, Player *player) {
 
   castle->set_inventory(inventory);
 
-  inventory->set_building_index(castle->get_index());
-  inventory->set_flag_index(flag->get_index());
-  inventory->set_owner(player->get_index());
+  inventory->set_building(castle);
+  inventory->set_flag(flag);
+  inventory->set_owner(player);
   inventory->apply_supplies_preset(player->get_initial_supplies());
 
   add_gold_total(static_cast<int>(
@@ -1495,14 +1480,14 @@ Game::build_castle(MapPos pos, Player *player) {
 
   castle->set_position(pos);
   flag->set_position(map->move_down_right(pos));
-  castle->set_owner(player->get_index());
+  castle->set_owner(player);
   castle->start_building(Building::TypeCastle);
 
-  flag->set_owner(player->get_index());
+  flag->set_owner(player);
   flag->set_accepts_serfs(true);
   flag->set_has_inventory();
   flag->set_accepts_resources(true);
-  castle->link_flag(flag->get_index());
+  castle->link_flag(flag);
   flag->link_building(castle);
 
   map->set_object(pos, Map::ObjectCastle, castle->get_index());
@@ -1529,8 +1514,8 @@ Game::build_castle(MapPos pos, Player *player) {
 }
 
 void
-Game::flag_remove_player_refs(Flag *flag) {
-  for (Player *player : players) {
+Game::flag_remove_player_refs(PFlag flag) {
+  for (PPlayer player : players) {
     if (player->temp_index == flag->get_index()) {
       player->temp_index = 0;
     }
@@ -1539,7 +1524,7 @@ Game::flag_remove_player_refs(Flag *flag) {
 
 /* Check whether road can be demolished. */
 bool
-Game::can_demolish_road(MapPos pos, const Player *player) const {
+Game::can_demolish_road(MapPos pos, const PPlayer player) const {
   if (!map->has_owner(pos) || map->get_owner(pos) != player->get_index()) {
     return false;
   }
@@ -1555,10 +1540,10 @@ Game::can_demolish_road(MapPos pos, const Player *player) const {
 
 /* Check whether flag can be demolished. */
 bool
-Game::can_demolish_flag(MapPos pos, const Player *player) const {
+Game::can_demolish_flag(MapPos pos, const PPlayer player) const {
   if (map->get_obj(pos) != Map::ObjectFlag) return false;
 
-  const Flag *flag = flags[map->get_obj_index(pos)];
+  const PFlag flag = flags[map->get_obj_index(pos)];
 
   if (flag->has_building()) {
     return false;
@@ -1566,7 +1551,7 @@ Game::can_demolish_flag(MapPos pos, const Player *player) const {
 
   if (map->paths(pos) == 0) return true;
 
-  if (flag->get_owner() != player->get_index()) return false;
+  if (flag->get_owner() != player) return false;
 
   return flag->can_demolish();
 }
@@ -1575,11 +1560,11 @@ bool
 Game::demolish_flag_(MapPos pos) {
   /* Handle any serf at pos. */
   if (map->has_serf(pos)) {
-    Serf *serf = get_serf_at_pos(pos);
+    PSerf serf = get_serf_at_pos(pos);
     serf->flag_deleted(pos);
   }
 
-  Flag *flag = flags[map->get_obj_index(pos)];
+  PFlag flag = flags[map->get_obj_index(pos)];
   if (flag->has_building()) {
     throw ExceptionFreeserf("Failed to demolish flag with building.");
   }
@@ -1590,7 +1575,7 @@ Game::demolish_flag_(MapPos pos) {
   flag->merge_paths(pos);
 
   /* Update serfs with reference to this flag. */
-  for (Serf *serf : serfs) {
+  for (PSerf serf : serfs) {
     serf->path_merged(flag);
   }
 
@@ -1606,15 +1591,17 @@ Game::demolish_flag_(MapPos pos) {
 
 /* Demolish flag at pos. */
 bool
-Game::demolish_flag(MapPos pos, Player *player) {
-  if (!can_demolish_flag(pos, player)) return false;
+Game::demolish_flag(MapPos pos, PPlayer player) {
+  if (!can_demolish_flag(pos, player)) {
+    return false;
+  }
 
   return demolish_flag_(pos);
 }
 
 bool
 Game::demolish_building_(MapPos pos) {
-  Building *building = buildings[map->get_obj_index(pos)];
+  PBuilding building = buildings[map->get_obj_index(pos)];
   if (building->burnup()) {
     building_remove_player_refs(building);
 
@@ -1623,13 +1610,9 @@ Game::demolish_building_(MapPos pos) {
     map->del_path(map->move_down_right(pos), Direction::DirectionUpLeft);
 
     /* Disconnect flag. */
-    unsigned int flag_index = building->get_flag_index();
-    if (flag_index > 0) {
-      Flag *flag = flags[flag_index];
-      flag->unlink_building();
-      building->unlink_flag();
-      flag_reset_transport(flag);
-    }
+    PFlag flag = building->get_flag();
+    flag->unlink_building();
+    flag_reset_transport(flag);
 
     return true;
   }
@@ -1639,11 +1622,15 @@ Game::demolish_building_(MapPos pos) {
 
 /* Demolish building at pos. */
 bool
-Game::demolish_building(MapPos pos, Player *player) {
-  Building *building = buildings[map->get_obj_index(pos)];
+Game::demolish_building(MapPos pos, PPlayer player) {
+  PBuilding building = buildings[map->get_obj_index(pos)];
 
-  if (building->get_owner() != player->get_index()) return false;
-  if (building->is_burning()) return false;
+  if (building->get_owner() != player) {
+    return false;
+  }
+  if (building->is_burning()) {
+    return false;
+  }
 
   return demolish_building_(pos);
 }
@@ -1687,7 +1674,7 @@ Game::surrender_land(MapPos pos) {
 /* Initialize land ownership for whole map. */
 void
 Game::init_land_ownership() {
-  for (Building *building : buildings) {
+  for (PBuilding building : buildings) {
     if (building->is_military()) {
       update_land_ownership(building->get_position());
     }
@@ -1748,7 +1735,7 @@ Game::update_land_ownership(MapPos init_pos) {
           map->get_obj(pos) <= Map::ObjectCastle &&
           map->has_path(pos,
                    DirectionDownRight)) {  // TODO(_): Why wouldn't this be set?
-        Building *building = get_building_at_pos(pos);
+        PBuilding building = get_building_at_pos(pos);
         int mil_type = -1;
 
         if (building->get_type() == Building::TypeCastle) {
@@ -1769,7 +1756,7 @@ Game::update_land_ownership(MapPos init_pos) {
                                  influence_diameter*std::max(-i, 0) +
                                  std::max(-j, 0);
           int *arr = temp_arr.get() +
-            (building->get_owner() * calculate_diameter*calculate_diameter) +
+            (building->get_owner()->get_index() * calculate_diameter * calculate_diameter) +
             calculate_diameter * std::max(i, 0) + std::max(j, 0);
 
           for (int k = 0; k < influence_diameter - abs(i); k++) {
@@ -1797,7 +1784,7 @@ Game::update_land_ownership(MapPos init_pos) {
     for (int j = -calculate_radius; j <= calculate_radius; j++) {
       int max_val = 0;
       int player_index = -1;
-      for (Player *player : players) {
+      for (PPlayer player : players) {
         const int *arr = temp_arr.get() +
           player->get_index()*calculate_diameter*calculate_diameter +
           calculate_diameter*(i+calculate_radius) + (j+calculate_radius);
@@ -1835,7 +1822,7 @@ Game::update_land_ownership(MapPos init_pos) {
       if (map->get_obj(pos) >= Map::ObjectSmallBuilding &&
           map->get_obj(pos) <= Map::ObjectCastle &&
           map->has_path(pos, DirectionDownRight)) {
-        Building *building = buildings[map->get_obj_index(pos)];
+        PBuilding building = buildings[map->get_obj_index(pos)];
         if (building->is_done() && building->is_military()) {
           building->update_military_flag_state();
         }
@@ -1867,16 +1854,14 @@ Game::demolish_flag_and_roads(MapPos pos) {
 /* The given building has been defeated and is being
    occupied by player. */
 void
-Game::occupy_enemy_building(Building *building, int player_num) {
+Game::occupy_enemy_building(PBuilding building, PPlayer player) {
   /* Take the building. */
-  Player *player = players[player_num];
-
   player->building_captured(building);
 
   if (building->get_type() == Building::TypeCastle) {
     demolish_building_(building->get_position());
   } else {
-    Flag *flag = flags[building->get_flag_index()];
+    PFlag flag = building->get_flag();
     flag_reset_transport(flag);
 
     /* Demolish nearby buildings. */
@@ -1890,18 +1875,18 @@ Game::occupy_enemy_building(Building *building, int player_num) {
 
     /* Change owner of land and remove roads and flags
        except the flag associated with the building. */
-    map->set_owner(building->get_position(), player_num);
+    map->set_owner(building->get_position(), player->get_index());
 
     for (Direction d : cycle_directions_cw()) {
       MapPos pos = map->move(building->get_position(), d);
-      map->set_owner(pos, player_num);
+      map->set_owner(pos, player->get_index());
       if (pos != flag->get_position()) {
         demolish_flag_and_roads(pos);
       }
     }
 
     /* Change owner of flag. */
-    flag->set_owner(player_num);
+    flag->set_owner(player);
 
     /* Reset destination of stolen resources. */
     flag->reset_destination_of_stolen_resources();
@@ -1919,8 +1904,8 @@ Game::occupy_enemy_building(Building *building, int player_num) {
 
 /* mode: 0: IN, 1: STOP, 2: OUT */
 void
-Game::set_inventory_resource_mode(Inventory *inventory, int mode) {
-  Flag *flag = flags[inventory->get_flag_index()];
+Game::set_inventory_resource_mode(PInventory inventory, int mode) {
+  PFlag flag = inventory->get_flag();
 
   if (mode == 0) {
     inventory->set_res_mode(Inventory::ModeIn);
@@ -1936,7 +1921,7 @@ Game::set_inventory_resource_mode(Inventory *inventory, int mode) {
     /* Clear destination of serfs with resources destined
        for this inventory. */
     int dest = flag->get_index();
-    for (Serf *serf : serfs) {
+    for (PSerf serf : serfs) {
       serf->clear_destination2(dest);
     }
   } else {
@@ -1946,8 +1931,8 @@ Game::set_inventory_resource_mode(Inventory *inventory, int mode) {
 
 /* mode: 0: IN, 1: STOP, 2: OUT */
 void
-Game::set_inventory_serf_mode(Inventory *inventory, int mode) {
-  Flag *flag = flags[inventory->get_flag_index()];
+Game::set_inventory_serf_mode(PInventory inventory, int mode) {
+  PFlag flag = inventory->get_flag();
 
   if (mode == 0) {
     inventory->set_serf_mode(Inventory::ModeIn);
@@ -1962,7 +1947,7 @@ Game::set_inventory_serf_mode(Inventory *inventory, int mode) {
 
     /* Clear destination of serfs destined for this inventory. */
     int dest = flag->get_index();
-    for (Serf *serf : serfs) {
+    for (PSerf serf : serfs) {
       serf->clear_destination(dest);
     }
   } else {
@@ -1975,8 +1960,8 @@ unsigned int
 Game::add_player(unsigned int intelligence, unsigned int supplies,
                  unsigned int reproduction) {
   /* Allocate object */
-  Player *player = players.allocate();
-  if (player == nullptr) {
+  PPlayer player = players.allocate();
+  if (!player) {
     throw ExceptionFreeserf("Failed to create new player.");
   }
 
@@ -1990,6 +1975,21 @@ Game::add_player(unsigned int intelligence, unsigned int supplies,
 
 bool
 Game::init(unsigned int map_size, const Random &random) {
+  players = Players(shared_from_this());
+  flags = Flags(shared_from_this());
+  inventories = Inventories(shared_from_this());
+  buildings = Buildings(shared_from_this());
+  serfs = Serfs(shared_from_this());
+
+  /* Create NULL-serf */
+  serfs.allocate();
+
+  /* Create NULL-building (index 0 is undefined) */
+  buildings.allocate();
+
+  /* Create NULL-flag (index 0 is undefined) */
+  flags.allocate();
+
   init_map_rnd = random;
 
   map.reset(new Map(MapGeometry(map_size)));
@@ -2010,11 +2010,11 @@ Game::cancel_transported_resource(Resource::Type res, unsigned int dest) {
     return;
   }
 
-  Flag *flag = flags[dest];
+  PFlag flag = flags[dest];
   if (!flag->has_building()) {
     throw ExceptionFreeserf("Failed to cancel transported resource.");
   }
-  Building *building = flag->get_building();
+  PBuilding building = flag->get_building();
   building->cancel_transported_resource(res);
 }
 
@@ -2046,7 +2046,7 @@ Game::next_search_id() {
   return flag_search_counter;
 }
 
-Serf *
+PSerf
 Game::create_serf(int index) {
   if (index == -1) {
     return serfs.allocate();
@@ -2056,11 +2056,11 @@ Game::create_serf(int index) {
 }
 
 void
-Game::delete_serf(Serf *serf) {
+Game::delete_serf(PSerf serf) {
   serfs.erase(serf->get_index());
 }
 
-Flag *
+PFlag
 Game::create_flag(int index) {
   if (index == -1) {
     return flags.allocate();
@@ -2069,7 +2069,7 @@ Game::create_flag(int index) {
   }
 }
 
-Inventory *
+PInventory
 Game::create_inventory(int index) {
   if (index == -1) {
     return inventories.allocate();
@@ -2079,11 +2079,11 @@ Game::create_inventory(int index) {
 }
 
 void
-Game::delete_inventory(Inventory *inventory) {
+Game::delete_inventory(PInventory inventory) {
   inventories.erase(inventory->get_index());
 }
 
-Building *
+PBuilding
 Game::create_building(int index) {
   if (index == -1) {
     return buildings.allocate();
@@ -2093,17 +2093,17 @@ Game::create_building(int index) {
 }
 
 void
-Game::delete_building(Building *building) {
+Game::delete_building(PBuilding building) {
   map->set_object(building->get_position(), Map::ObjectNone, 0);
   buildings.erase(building->get_index());
 }
 
 Game::ListSerfs
-Game::get_player_serfs(Player *player) {
+Game::get_player_serfs(PPlayer player) {
   ListSerfs player_serfs;
 
-  for (Serf *serf : serfs) {
-    if (serf->get_owner() == player->get_index()) {
+  for (PSerf serf : serfs) {
+    if (serf->get_owner() == player) {
       player_serfs.push_back(serf);
     }
   }
@@ -2112,11 +2112,11 @@ Game::get_player_serfs(Player *player) {
 }
 
 Game::ListBuildings
-Game::get_player_buildings(Player *player) {
+Game::get_player_buildings(PPlayer player) {
   ListBuildings player_buildings;
 
-  for (Building *building : buildings) {
-    if (building->get_owner() == player->get_index()) {
+  for (PBuilding building : buildings) {
+    if (building->get_owner() == player) {
       player_buildings.push_back(building);
     }
   }
@@ -2125,11 +2125,11 @@ Game::get_player_buildings(Player *player) {
 }
 
 Game::ListInventories
-Game::get_player_inventories(Player *player) {
+Game::get_player_inventories(PPlayer player) {
   ListInventories player_inventories;
 
-  for (Inventory *inventory : inventories) {
-    if (inventory->get_owner() == player->get_index()) {
+  for (PInventory inventory : inventories) {
+    if (inventory->get_owner() == player) {
       player_inventories.push_back(inventory);
     }
   }
@@ -2141,7 +2141,7 @@ Game::ListSerfs
 Game::get_serfs_at_pos(MapPos pos) {
   ListSerfs result;
 
-  for (Serf *serf : serfs) {
+  for (PSerf serf : serfs) {
     if (serf->get_pos() == pos) {
       result.push_back(serf);
     }
@@ -2151,10 +2151,10 @@ Game::get_serfs_at_pos(MapPos pos) {
 }
 
 Game::ListSerfs
-Game::get_serfs_in_inventory(Inventory *inventory) {
+Game::get_serfs_in_inventory(PInventory inventory) {
   ListSerfs result;
 
-  for (Serf *serf : serfs) {
+  for (PSerf serf : serfs) {
     if (serf->get_state() == Serf::StateIdleInStock &&
         inventory->get_index() == serf->get_idle_in_stock_inv_index()) {
       result.push_back(serf);
@@ -2168,7 +2168,7 @@ Game::ListSerfs
 Game::get_serfs_related_to(unsigned int dest, Direction dir) {
   ListSerfs result;
 
-  for (Serf *serf : serfs) {
+  for (PSerf serf : serfs) {
     if (serf->is_related_to(dest, dir)) {
       result.push_back(serf);
     }
@@ -2177,8 +2177,8 @@ Game::get_serfs_related_to(unsigned int dest, Direction dir) {
   return result;
 }
 
-Player *
-Game::get_next_player(const Player *player) {
+PPlayer
+Game::get_next_player(const PPlayer player) {
   auto p = players.begin();
   while (*p != player) {
     ++p;
@@ -2192,10 +2192,10 @@ Game::get_next_player(const Player *player) {
 }
 
 unsigned int
-Game::get_enemy_score(const Player *player) const {
+Game::get_enemy_score(const PPlayer player) const {
   unsigned int enemy_score = 0;
 
-  for (const Player* p : players) {
+  for (const PPlayer p : players) {
     if (player->get_index() != p->get_index()) {
       enemy_score += p->get_total_military_score();
     }
@@ -2205,11 +2205,11 @@ Game::get_enemy_score(const Player *player) const {
 }
 
 void
-Game::building_captured(Building *building) {
+Game::building_captured(PBuilding building) {
   /* Save amount of land and buildings for each player */
   std::map<int, int> land_before;
   std::map<int, int> buildings_before;
-  for (Player *player : players) {
+  for (PPlayer player : players) {
     land_before[player->get_index()] = player->get_land_area();
     buildings_before[player->get_index()] = player->get_building_score();
   }
@@ -2218,22 +2218,22 @@ Game::building_captured(Building *building) {
   update_land_ownership(building->get_position());
 
   /* Create notfications for lost land and buildings */
-  for (Player *player : players) {
+  for (PPlayer player : players) {
     if (buildings_before[player->get_index()] > player->get_building_score()) {
       player->add_notification(Message::TypeLostBuildings,
                                building->get_position(),
-                               building->get_owner());
+                               building->get_owner()->get_index());
     } else if (land_before[player->get_index()] > player->get_land_area()) {
       player->add_notification(Message::TypeLostLand,
                                building->get_position(),
-                               building->get_owner());
+                               building->get_owner()->get_index());
     }
   }
 }
 
 void
 Game::clear_search_id() {
-  for (Flag *flag : flags) {
+  for (PFlag flag : flags) {
     flag->clear_search_id();
   }
 }
@@ -2331,7 +2331,7 @@ operator >> (SaveReaderBinary &reader, Game &game) {
     player_reader >> v8;
     if (BIT_TEST(v8, 6)) {
       player_reader.reset();
-      Player *player = game.players.get_or_insert(i);
+      PPlayer player = game.players.get_or_insert(i);
       player_reader >> *player;
     }
   }
@@ -2368,7 +2368,7 @@ Game::load_serfs(SaveReaderBinary *reader, int max_serf_index) {
   for (int i = 0; i < max_serf_index; i++) {
     SaveReaderBinary serf_reader = reader->extract(16);
     if (BIT_TEST(bitmap[(i)>>3], 7-((i)&7))) {
-      Serf *serf = serfs.get_or_insert(i);
+      PSerf serf = serfs.get_or_insert(i);
       serf_reader >> *serf;
     }
   }
@@ -2388,7 +2388,7 @@ Game::load_flags(SaveReaderBinary *reader, int max_flag_index) {
   for (int i = 0; i < max_flag_index; i++) {
     SaveReaderBinary flag_reader = reader->extract(70);
     if (BIT_TEST(bitmap[(i)>>3], 7-((i)&7))) {
-      Flag *flag = flags.get_or_insert(i);
+      PFlag flag = flags.get_or_insert(i);
       flag_reader >> *flag;
     }
   }
@@ -2396,7 +2396,7 @@ Game::load_flags(SaveReaderBinary *reader, int max_flag_index) {
   /* Set flag positions. */
   for (MapPos pos : map->geom()) {
     if (map->get_obj(pos) == Map::ObjectFlag) {
-      Flag *flag = flags[map->get_obj_index(pos)];
+      PFlag flag = flags[map->get_obj_index(pos)];
       flag->set_position(pos);
     }
   }
@@ -2416,7 +2416,7 @@ Game::load_buildings(SaveReaderBinary *reader, int max_building_index) {
   for (int i = 0; i < max_building_index; i++) {
     SaveReaderBinary building_reader = reader->extract(18);
     if (BIT_TEST(bitmap[(i)>>3], 7-((i)&7))) {
-      Building *building = buildings.get_or_insert(i);
+      PBuilding building = buildings.get_or_insert(i);
       building_reader >> *building;
     }
   }
@@ -2446,7 +2446,7 @@ Game::load_inventories(SaveReaderBinary *reader, int max_inventory_index) {
   for (int i = 0; i < max_inventory_index; i++) {
     SaveReaderBinary inventory_reader = reader->extract(120);
     if (BIT_TEST(bitmap[(i)>>3], 7-((i)&7))) {
-      Inventory *inventory = inventories.get_or_insert(i);
+      PInventory inventory = inventories.get_or_insert(i);
       inventory_reader >> *inventory;
     }
   }
@@ -2454,25 +2454,25 @@ Game::load_inventories(SaveReaderBinary *reader, int max_inventory_index) {
   return true;
 }
 
-Building *
+PBuilding
 Game::get_building_at_pos(MapPos pos) {
   Map::Object map_obj = map->get_obj(pos);
   if (map_obj >= Map::ObjectSmallBuilding && map_obj <= Map::ObjectCastle) {
     return buildings[map->get_obj_index(pos)];
   }
-  return NULL;
+  return nullptr;
 }
 
-Flag *
+PFlag
 Game::get_flag_at_pos(MapPos pos) {
   if (map->get_obj(pos) != Map::ObjectFlag) {
-    return NULL;
+    return nullptr;
   }
 
   return flags[map->get_obj_index(pos)];
 }
 
-Serf *
+PSerf
 Game::get_serf_at_pos(MapPos pos) {
   return serfs[map->get_serf_index(pos)];
 }
@@ -2554,33 +2554,33 @@ operator >> (SaveReaderText &reader, Game &game) {
   game.map->set_update_state(update_state);
 
   for (SaveReaderText* subreader : reader.get_sections("player")) {
-    Player *p = game.players.get_or_insert(subreader->get_number());
+    PPlayer p = game.players.get_or_insert(subreader->get_number());
     *subreader >> *p;
   }
 
   for (SaveReaderText* subreader : reader.get_sections("flag")) {
-    Flag *p = game.flags.get_or_insert(subreader->get_number());
+    PFlag p = game.flags.get_or_insert(subreader->get_number());
     *subreader >> *p;
   }
 
   sections = reader.get_sections("building");
   for (SaveReaderText* subreader : reader.get_sections("building")) {
-    Building *p = game.buildings.get_or_insert(subreader->get_number());
+    PBuilding p = game.buildings.get_or_insert(subreader->get_number());
     *subreader >> *p;
   }
 
   for (SaveReaderText* subreader : reader.get_sections("inventory")) {
-    Inventory *p = game.inventories.get_or_insert(subreader->get_number());
+    PInventory p = game.inventories.get_or_insert(subreader->get_number());
     *subreader >> *p;
   }
 
   for (SaveReaderText* subreader : reader.get_sections("serf")) {
-    Serf *p = game.serfs.get_or_insert(subreader->get_number());
+    PSerf p = game.serfs.get_or_insert(subreader->get_number());
     *subreader >> *p;
   }
 
   /* Restore idle serf flag */
-  for (Serf *serf : game.serfs) {
+  for (PSerf serf : game.serfs) {
     if (serf->get_index() == 0) continue;
 
     if (serf->get_state() == Serf::StateIdleOnPath ||
@@ -2590,7 +2590,7 @@ operator >> (SaveReaderText &reader, Game &game) {
   }
 
   /* Restore building index */
-  for (Building *building : game.buildings) {
+  for (PBuilding building : game.buildings) {
     if (building->get_index() == 0) continue;
 
     if (game.map->get_obj(building->get_position()) <
@@ -2606,7 +2606,7 @@ operator >> (SaveReaderText &reader, Game &game) {
   }
 
   /* Restore flag index */
-  for (Flag *flag : game.flags) {
+  for (PFlag flag : game.flags) {
     if (flag->get_index() == 0) continue;
 
     if (game.map->get_obj(flag->get_position()) != Map::ObjectFlag) {
@@ -2663,32 +2663,32 @@ operator << (SaveWriterText &writer, Game &game) {
   writer.value("update_state.initial_pos") << game.map->pos_row(
     update_state.initial_pos);
 
-  for (Player *player : game.players) {
+  for (PPlayer player : game.players) {
     SaveWriterText &player_writer = writer.add_section("player",
                                                        player->get_index());
     player_writer << *player;
   }
 
-  for (Flag *flag : game.flags) {
+  for (PFlag flag : game.flags) {
     if (flag->get_index() == 0) continue;
     SaveWriterText &flag_writer = writer.add_section("flag", flag->get_index());
     flag_writer << *flag;
   }
 
-  for (Building *building : game.buildings) {
+  for (PBuilding building : game.buildings) {
     if (building->get_index() == 0) continue;
     SaveWriterText &building_writer = writer.add_section("building",
                                                          building->get_index());
     building_writer << *building;
   }
 
-  for (Inventory *inventory : game.inventories) {
+  for (PInventory inventory : game.inventories) {
     SaveWriterText &inventory_writer = writer.add_section("inventory",
                                                         inventory->get_index());
     inventory_writer << *inventory;
   }
 
-  for (Serf *serf : game.serfs) {
+  for (PSerf serf : game.serfs) {
     if (serf->get_index() == 0) continue;
     SaveWriterText &serf_writer = writer.add_section("serf", serf->get_index());
     serf_writer << *serf;

@@ -115,9 +115,9 @@ PanelBar::draw_return_arrow() {
 void
 PanelBar::draw_panel_buttons() {
   if (enabled) {
-    Player *player = interface->get_player();
+    PPlayer player = interface->get_player();
     /* Blinking message icon. */
-    if ((player != NULL) && player->has_notification()) {
+    if (player && player->has_notification()) {
       if (blink_trigger) {
         draw_message_notify();
       }

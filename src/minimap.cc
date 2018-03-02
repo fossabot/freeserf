@@ -170,7 +170,7 @@ MinimapGame::draw_minimap_ownership(int density) {
     for (unsigned int col = 0; col < map->get_cols(); col += density) {
       MapPos pos = map->pos(col, row);
       if (map->has_owner(pos)) {
-        Color color = interface->get_player_color(map->get_owner(pos));
+        Color color = interface->get_player_color(game->get_player(map->get_owner(pos)));
         draw_minimap_point(col, row, color, scale);
       }
     }
@@ -209,9 +209,9 @@ MinimapGame::draw_minimap_buildings() {
       int pos = map->pos(col, row);
       int obj = map->get_obj(pos);
       if (obj > Map::ObjectFlag && obj <= Map::ObjectCastle) {
-        Color color = interface->get_player_color(map->get_owner(pos));
+        Color color = interface->get_player_color(game->get_player(map->get_owner(pos)));
         if (advanced > 0) {
-          Building *bld = interface->get_game()->get_building_at_pos(pos);
+          PBuilding bld = interface->get_game()->get_building_at_pos(pos);
           if (bld->get_type() == building_remap[advanced]) {
             draw_minimap_point(col, row, color, scale);
           }
@@ -229,7 +229,7 @@ MinimapGame::draw_minimap_traffic() {
     for (unsigned int col = 0; col < map->get_cols(); col++) {
       int pos = map->pos(col, row);
       if (map->get_idle_serf(pos)) {
-        Color color = interface->get_player_color(map->get_owner(pos));
+        Color color = interface->get_player_color(game->get_player(map->get_owner(pos)));
         draw_minimap_point(col, row, color, scale);
       }
     }
