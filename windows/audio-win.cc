@@ -50,14 +50,16 @@ AudioWin::set_volume(float volume_) {
   volume = volume_;
 
   if (midi_player) {
-    Audio::PVolumeController volume_controller = midi_player->get_volume_controller();
+    Audio::PVolumeController volume_controller =
+                                          midi_player->get_volume_controller();
     if (volume_controller) {
       volume_controller->set_volume(volume_controller->get_volume() * volume);
     }
   }
 
   if (sfx_player) {
-    Audio::PVolumeController volume_controller = sfx_player->get_volume_controller();
+    Audio::PVolumeController volume_controller =
+                                           sfx_player->get_volume_controller();
     if (volume_controller) {
       volume_controller->set_volume(volume_controller->get_volume() * volume);
     }
@@ -286,7 +288,8 @@ AudioWin::PlayerMIDI::create_track(int track_id) {
     return nullptr;
   }
 
-  PTrackMIDI midi_track = std::make_shared<TrackMIDI>((TypeMidi)track_id, hMidiStream);
+  PTrackMIDI midi_track = std::make_shared<TrackMIDI>((TypeMidi)track_id,
+                                                      hMidiStream);
   if (!midi_track->create(midi)) {
     midi_track = nullptr;
   }
@@ -507,7 +510,8 @@ AudioWin::TrackMIDI::create(PBuffer data_) {
         input_buf += (length);
       } else {
         input_buf += length;
-        Log::Warn["audio-win"] << "Unsupported midi meta event 0x" << std::hex << (int)meta
+        Log::Warn["audio-win"] << "Unsupported midi meta event 0x"
+                               << std::hex << (int)meta
                                << ". Skipped.";
       }
     } else if ((type & 0xf0) != 0xf0) {
@@ -524,7 +528,8 @@ AudioWin::TrackMIDI::create(PBuffer data_) {
 
       push_event((DWORD)delta_time, dwEvent);
     } else {
-      Log::Error["audio-win"] << "Unsupported midi event 0x" << std::hex << (int)type;
+      Log::Error["audio-win"] << "Unsupported midi event 0x"
+                              << std::hex << (int)type;
     }
   }
 

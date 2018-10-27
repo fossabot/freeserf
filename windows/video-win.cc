@@ -235,7 +235,8 @@ VideoWin::fill_rect(int x, int y, unsigned int width, unsigned int height,
 }
 
 void
-VideoWin::draw_line(int x, int y, int x1, int y1, const Video::Color color, Frame *dest) {
+VideoWin::draw_line(int x, int y, int x1, int y1,
+                    const Video::Color color, Frame *dest) {
   Gdiplus::Graphics graphics(dest->texture);
   Gdiplus::Pen pen(Gdiplus::Color(color.a, color.r, color.g, color.b));
   if (graphics.DrawLine(&pen, x, y, x1, y1) != Gdiplus::Ok) {
