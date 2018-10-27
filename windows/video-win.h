@@ -53,13 +53,13 @@ class VideoWin : public Video {
   HCURSOR cursor;
 
  public:
-  VideoWin() throw(ExceptionVideo);
+  VideoWin();
   virtual ~VideoWin();
 
   virtual void set_resolution(unsigned int width, unsigned int height,
-                              bool fullscreen) throw(ExceptionVideo);
+                              bool fullscreen);
   virtual void get_resolution(unsigned int *width, unsigned int *height);
-  virtual void set_fullscreen(bool enable) throw(ExceptionVideo);
+  virtual void set_fullscreen(bool enable);
   virtual bool is_fullscreen();
 
   virtual Video::Frame *get_screen_frame();
@@ -87,6 +87,7 @@ class VideoWin : public Video {
 
   virtual float get_zoom_factor() { return 1.f; }
   virtual bool set_zoom_factor(float factor) { return true; }
+  virtual void get_screen_factor(float *fx, float *fy);
 
   HWND get_window() { return window; }
   HCURSOR get_cursor() { return cursor; }

@@ -45,37 +45,31 @@ VideoWin::VideoWin()
   }
 
   /* Create window and renderer */
-  GUID guid = { 0 };
-  ::CoCreateGuid(&guid);
-  LPWSTR className = new WCHAR[39];
-  StringFromGUID2(guid, className, 39);
-
-  WNDCLASSEXW wcex = { sizeof(WNDCLASSEX), CS_OWNDC,
+  const char *className = "FreeSerf_window_class";
+  WNDCLASSEXA wcex = { sizeof(WNDCLASSEX), CS_OWNDC,
     &TmpWindowProc,
     0, 0,
     GetModuleHandle(nullptr),
     0,
     LoadCursor(nullptr, IDC_ARROW),
     0, 0,
-    className,
+    "FreeSerf_window_class",
     0
   };
 
-  if (!RegisterClassExW(&wcex)) {
+  if (!RegisterClassExA(&wcex)) {
     return;
   }
 
   DWORD windowStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_SIZEBOX;
   DWORD windowExtendedStyle = 0;
-  window = ::CreateWindowExW(windowExtendedStyle,
+  window = ::CreateWindowExA(windowExtendedStyle,
     className,
-    L"FreeSerf",
+    "FreeSerf",
     windowStyle,
     0, 0,
     800, 600,
     0, 0, GetModuleHandle(nullptr), nullptr);
-
-  delete[] className;
 }
 
 VideoWin::~VideoWin() {
@@ -283,4 +277,15 @@ VideoWin::set_cursor(void *data, unsigned int width, unsigned int height) {
   cursor = icon;
   destroy_image(image);
   ::SetCursor(cursor);
+}
+
+void
+VideoWin::get_screen_factor(float *fx, float *fy) {
+  if (fx != nullptr) {
+    *fx = 1.f;
+  }
+
+  if (fy != nullptr) {
+    *fy = 1.f;
+  }
 }
