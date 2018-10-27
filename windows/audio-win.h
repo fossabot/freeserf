@@ -25,6 +25,7 @@
 
 #include <windows.h>
 #include <list>
+#include <memory>
 
 #include "src/audio.h"
 #include "src/buffer.h"
@@ -46,7 +47,8 @@ class AudioWin : public Audio, public Audio::VolumeController {
     virtual void play();
   };
 
-  class PlayerSFX : public Audio::Player, public Audio::VolumeController, public std::enable_shared_from_this<PlayerSFX> {
+  class PlayerSFX : public Audio::Player, public Audio::VolumeController,
+                    public std::enable_shared_from_this<PlayerSFX> {
    protected:
     HWAVEOUT hWaveOut;
 
@@ -55,7 +57,9 @@ class AudioWin : public Audio, public Audio::VolumeController {
     virtual ~PlayerSFX();
 
     virtual void enable(bool enable);
-    virtual Audio::PVolumeController get_volume_controller() { return shared_from_this(); }
+    virtual Audio::PVolumeController get_volume_controller() {
+        return shared_from_this();
+    }
 
    protected:
     virtual Audio::PTrack create_track(int track_id);
@@ -117,7 +121,8 @@ class AudioWin : public Audio, public Audio::VolumeController {
   };
   typedef std::shared_ptr<TrackMIDI> PTrackMIDI;
 
-  class PlayerMIDI : public Audio::Player, public Audio::VolumeController, public std::enable_shared_from_this<PlayerMIDI> {
+  class PlayerMIDI : public Audio::Player, public Audio::VolumeController,
+                     public std::enable_shared_from_this<PlayerMIDI> {
    protected:
     PTrackMIDI current_track;
     HMIDISTRM hMidiStream;
@@ -128,7 +133,9 @@ class AudioWin : public Audio, public Audio::VolumeController {
 
     virtual Audio::PTrack play_track(int track_id);
     virtual void enable(bool enable);
-    virtual Audio::PVolumeController get_volume_controller() { return shared_from_this(); }
+    virtual Audio::PVolumeController get_volume_controller() {
+        return shared_from_this();
+    }
 
    protected:
     virtual Audio::PTrack create_track(int track_id);

@@ -372,8 +372,7 @@ AudioWin::TrackMIDI::TrackMIDI(TypeMidi trackid, HMIDISTRM hMidiStrm)
   : hMidiStream(hMidiStrm)
   , track_id(trackid)
   , current_buffer(nullptr)
-  , division(0)
-{
+  , division(0) {
 }
 
 AudioWin::TrackMIDI::~TrackMIDI() {
@@ -504,14 +503,13 @@ AudioWin::TrackMIDI::create(PBuffer data_) {
         }
       } else if (meta == 0x2F) {
         break;
-      }
-      else if (meta == 0x58) {
+      } else if (meta == 0x58) {
         // Drop this event
         input_buf += (length);
       } else {
         input_buf += length;
-        Log::Warn["audio-win"] << "Unsupported midi meta event 0x"
-                               << std::hex << (int)meta
+        Log::Warn["audio-win"] << "Unsupported midi meta event 0x" << std::hex
+                               << static_cast<int>(meta)
                                << ". Skipped.";
       }
     } else if ((type & 0xf0) != 0xf0) {
@@ -529,7 +527,7 @@ AudioWin::TrackMIDI::create(PBuffer data_) {
       push_event((DWORD)delta_time, dwEvent);
     } else {
       Log::Error["audio-win"] << "Unsupported midi event 0x"
-                              << std::hex << (int)type;
+                              << std::hex << static_cast<int>(type);
     }
   }
 
