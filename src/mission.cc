@@ -22,7 +22,7 @@
 #include "src/mission.h"
 #include "src/game.h"
 
-CharacterPreset characters[] = {
+Character characters[] = {
   { 0, "ERROR", "ERROR"},
   { 1, "Lady Amalie",
     "An inoffensive lady, reserved, who goes about her work peacefully."},
@@ -387,7 +387,7 @@ GameInfo::GameInfo(const GameInfo::Mission *mission_preset) {
   name = mission_preset->name;
   random_base = mission_preset->rnd;
   for (size_t i = 0; i < mission_preset->player.size(); i++) {
-    PlayerPreset player_info = mission_preset->player[i];
+    PlayerInfo::Preset player_info = mission_preset->player[i];
     size_t character = player_info.character->face;
     PPlayerInfo player(new PlayerInfo(character,
                                       def_color[i],
@@ -472,7 +472,7 @@ GameInfo::get_mission_count() {
   return sizeof(missions) / sizeof(missions[0]);
 }
 
-const CharacterPreset *
+const Character *
 GameInfo::get_character(size_t character) {
   if (character >= get_character_count()) {
     return nullptr;
@@ -502,7 +502,7 @@ GameInfo::instantiate() {
     Player *player = game->get_player(index);
     player->init_view(player_info->get_color(), player_info->get_face());
 
-    PosPreset castle_pos = player_info->get_castle_pos();
+    PlayerInfo::Pos castle_pos = player_info->get_castle_pos();
     if (castle_pos.col > -1 && castle_pos.row > -1) {
       MapPos pos = game->get_map()->pos(castle_pos.col, castle_pos.row);
       game->build_castle(pos, player);
@@ -533,7 +533,7 @@ PlayerInfo::PlayerInfo(size_t character, const Player::Color &_color,
 }
 
 void
-PlayerInfo::set_castle_pos(PosPreset _castle_pos) {
+PlayerInfo::set_castle_pos(PlayerInfo::Pos _castle_pos) {
   castle_pos = _castle_pos;
 }
 

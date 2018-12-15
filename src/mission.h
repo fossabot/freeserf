@@ -30,38 +30,27 @@
 #include "src/player.h"
 #include "src/game.h"
 
-typedef struct PlayerColor {
-  unsigned char red;
-  unsigned char green;
-  unsigned char blue;
-} PlayerColor;
-
-typedef struct CharacterPreset {
+typedef struct Character {
   unsigned int face;
   const char *name;
   const char *characterization;
-} CharacterPreset;
-
-typedef struct PosPreset {
-  int col;
-  int row;
-} PosPreset;
-
-typedef struct PlayerPreset {
-  CharacterPreset *character;
-  unsigned int intelligence;
-  unsigned int supplies;
-  unsigned int reproduction;
-  PosPreset castle;
-} PlayerPreset;
-
-typedef struct MissionPreset {
-  const std::string name;
-  Random rnd;
-  std::vector<PlayerPreset> player;
-} MissionPreset;
+} Character;
 
 class PlayerInfo {
+ public:
+  typedef struct Pos {
+    int col;
+    int row;
+  } Pos;
+
+  typedef struct Preset {
+    Character *character;
+    unsigned int intelligence;
+    unsigned int supplies;
+    unsigned int reproduction;
+    Pos castle;
+  } Preset;
+
  protected:
   unsigned int intelligence;
   unsigned int supplies;
@@ -70,7 +59,7 @@ class PlayerInfo {
   Player::Color color;
   std::string name;
   std::string characterization;
-  PosPreset castle_pos;
+  Pos castle_pos;
 
  public:
   explicit PlayerInfo(Random *random_base);
@@ -83,7 +72,7 @@ class PlayerInfo {
   void set_supplies(unsigned int _supplies) { supplies = _supplies; }
   void set_reproduction(unsigned int _reproduction) {
     reproduction = _reproduction; }
-  void set_castle_pos(PosPreset _castle_pos);
+  void set_castle_pos(Pos _castle_pos);
   void set_character(size_t character);
   void set_color(const Player::Color &_color) { color = _color; }
 
@@ -92,7 +81,7 @@ class PlayerInfo {
   unsigned int get_reproduction() const { return reproduction; }
   unsigned int get_face() const { return face; }
   Player::Color get_color() const { return color; }
-  PosPreset get_castle_pos() const { return castle_pos; }
+  Pos get_castle_pos() const { return castle_pos; }
 
   bool has_castle() const;
 };
@@ -108,7 +97,7 @@ class GameInfo {
   typedef struct Mission {
     const std::string name;
     Random rnd;
-    std::vector<PlayerPreset> player;
+    std::vector<PlayerInfo::Preset> player;
   } Mission;
 
  protected:
@@ -141,7 +130,7 @@ class GameInfo {
   static PGameInfo get_mission(size_t mission);
   static size_t get_mission_count();
 
-  static const CharacterPreset *get_character(size_t character);
+  static const Character *get_character(size_t character);
   static size_t get_character_count();
 
   PGame instantiate();

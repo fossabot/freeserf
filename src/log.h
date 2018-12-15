@@ -88,7 +88,7 @@ class Log {
       apply_level();
     }
 
-    Stream operator[](std::string subsystem) {
+    virtual Stream operator[](std::string subsystem) {
       *stream << prefix << ": [" << subsystem << "] ";
       return Stream(stream);
     }
