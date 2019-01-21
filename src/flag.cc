@@ -85,8 +85,6 @@ Flag::Flag(Game *game, unsigned int index) : GameObject(game, index) {
   owner = -1;
   search_num = 0;
   search_dir = DirectionRight;
-  path_con = 0;
-  endpoint = 0;
   transporter = 0;
   for (int i = 0; i < maxResCount; i++) {
     slot[i].dir = DirectionNone;
@@ -94,6 +92,8 @@ Flag::Flag(Game *game, unsigned int index) : GameObject(game, index) {
   inventory = false;
   accepts_serfs = false;
   accepts_resources = false;
+  building = nullptr;
+  has_resources = false;
   for (Direction i : cycle_directions_cw()) {
     other_end_dir[i] = 0;
     other_endpoint.f[i] = 0;
@@ -102,19 +102,15 @@ Flag::Flag(Game *game, unsigned int index) : GameObject(game, index) {
 
 void
 Flag::add_path(Direction dir, bool water) {
-  path_con |= BIT(dir);
-  if (water) {
-    endpoint &= ~BIT(dir);
-  } else {
-    endpoint |= BIT(dir);
-  }
+  dirs[dir].has_path = true;
+  dirs[dir].water_path = water;
   transporter &= ~BIT(dir);
 }
 
 void
 Flag::del_path(Direction dir) {
-  path_con &= ~BIT(dir);
-  endpoint &= ~BIT(dir);
+  dirs[dir].has_path = false;
+  dirs[dir].water_path = false;
   transporter &= ~BIT(dir);
 
   if (serf_requested(dir)) {
@@ -159,7 +155,7 @@ Flag::drop_resource(Package package) {
     if (slot[i].package.is_empty()) {
       slot[i].package = package;
       slot[i].dir = DirectionNone;
-      endpoint |= BIT(7);
+      has_resources = true;
       return true;
     }
   }
@@ -196,17 +192,11 @@ Flag::get_resource_at_slot(int slot_) const {
 
 void
 Flag::fix_scheduled() {
-  int scheduled_slots = 0;
   for (int i = 0; i < maxResCount; i++) {
     if (!slot[i].package.is_empty()) {
-      scheduled_slots++;
+      has_resources = true;
+      return;
     }
-  }
-
-  if (scheduled_slots) {
-    endpoint |= BIT(7);
-  } else {
-    endpoint &= ~BIT(7);
   }
 }
 
@@ -306,7 +296,7 @@ Flag::schedule_slot_to_unknown_dest(int slot_num) {
 
       slot[slot_num].package = Package(package.get_resource(),
                                        dest_bld->get_flag_index());
-      endpoint |= BIT(7);
+      has_resources = true;
       return;
     }
   }
@@ -321,7 +311,7 @@ Flag::schedule_slot_to_unknown_dest(int slot_num) {
      In the latter case we need to move it
      forth and back once before it can be delivered. */
     if (transporters() == 0) {
-      endpoint |= BIT(7);
+      has_resources = true;
     } else {
       Direction dir = DirectionNone;
       for (Direction d : cycle_directions_ccw()) {
@@ -342,7 +332,7 @@ Flag::schedule_slot_to_unknown_dest(int slot_num) {
     }
   } else {
     slot[slot_num].package = Package(package.get_resource(), inv);
-    endpoint |= BIT(7);
+    has_resources = true;
   }
 }
 
@@ -501,10 +491,10 @@ Flag::schedule_slot_to_known_dest(int slot_, unsigned int res_waiting[4]) {
       // Unable to deliver
       game->cancel_transported_resource(slot[slot_].package);
       slot[slot_].package.lost();
-      endpoint |= BIT(7);
+      has_resources = true;
     }
   } else {
-    endpoint |= BIT(7);
+    has_resources = true;
   }
 }
 
@@ -547,9 +537,19 @@ Flag::invalidate_resource_path(Direction dir) {
   for (int i = 0; i < maxResCount; i++) {
     if (!slot[i].package.is_empty() && slot[i].dir == dir) {
       slot[i].dir = DirectionNone;
-      endpoint |= BIT(7);
+      has_resources = true;
     }
   }
+}
+
+bool
+Flag::has_land_paths() const {
+  for (Direction d : cycle_directions_cw()) {
+    if (dirs[d].has_path && !dirs[d].water_path) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /* Get road length category value for real length.
@@ -861,8 +861,8 @@ Flag::update() {
   // Count of total resources waiting at flag
   int waiting_count = 0;
 
-  if (has_resources()) {
-    endpoint &= ~BIT(7);
+  if (has_resources) {
+    has_resources = false;
     for (int slot_ = 0; slot_ < maxResCount; slot_++) {
       if (!slot[slot_].package.is_empty()) {
         waiting_count += 1;
@@ -992,7 +992,7 @@ Flag::reset_transport(Flag *other) {
     if (!other->slot[slot_].package.is_empty() &&
         other->slot[slot_].package.get_dest() == index) {
       other->slot[slot_].package.lost();
-      other->endpoint |= BIT(7);
+      other->has_resources = true;
 
       if (other->slot[slot_].dir != DirectionNone) {
         Direction dir = other->slot[slot_].dir;
@@ -1014,15 +1014,15 @@ Flag::reset_destination_of_stolen_resources() {
 }
 
 void
-Flag::link_building(Building *building) {
-  other_endpoint.b[DirectionUpLeft] = building;
-  endpoint |= BIT(6);
+Flag::link_building(Building *building_) {
+  other_endpoint.b[DirectionUpLeft] = building_;
+  building = building_;
 }
 
 void
 Flag::unlink_building() {
   other_endpoint.b[DirectionUpLeft] = nullptr;
-  endpoint &= ~BIT(6);
+  building = nullptr;
   clear_flags();
 }
 
@@ -1039,10 +1039,15 @@ operator >> (SaveReaderBinary &reader, Flag &flag) {
 
   reader >> val8;  // 3
   flag.owner = (val8 >> 6) & 3;
-  flag.path_con = val8 & 0x3f;
+  for (Direction i : cycle_directions_cw()) {
+    flag.dirs[i].has_path = ((val8 & BIT(i)) != 0);
+  }
 
   reader >> val8;  // 4
-  flag.endpoint = val8;
+  for (Direction i : cycle_directions_cw()) {
+    flag.dirs[i].water_path = ((val8 & BIT(i)) != 0);
+  }
+  flag.has_resources = ((val8 & BIT(8)) != 0);
 
   reader >> val8;  // 5
   flag.transporter = val8;
@@ -1075,7 +1080,8 @@ operator >> (SaveReaderBinary &reader, Flag &flag) {
     /* Other endpoint could be a building in direction up left. */
     if (j == DirectionUpLeft && flag.has_building()) {
       unsigned int index = offset/18;
-      flag.other_endpoint.b[j] = flag.get_game()->create_building(index);
+      flag.building = flag.get_game()->create_building(index);
+      flag.other_endpoint.b[j] = flag.building;
     } else {
       if (!flag.has_path(j)) {
         flag.other_endpoint.f[j] = NULL;
@@ -1126,16 +1132,44 @@ operator >> (SaveReaderText &reader, Flag &flag) {
   reader.value("search_num") >> flag.search_num;
   reader.value("search_dir") >> flag.search_dir;
   unsigned int val;
-  reader.value("path_con") >> val;
-  if (reader.has_value("owner")) {
-    flag.path_con = val;
-    reader.value("owner") >> flag.owner;
+  if (reader.has_value("path_con")) {
+    reader.value("path_con") >> val;
+    if (reader.has_value("owner")) {
+      reader.value("owner") >> flag.owner;
+    } else {
+      flag.owner = ((val >> 6) & 3);
+    }
+    for (Direction i : cycle_directions_cw()) {
+      flag.dirs[i].has_path = ((val & BIT(i)) != 0);
+    }
   } else {
-    flag.path_con = (val & 0x3f);
-    flag.owner = ((val >> 6) & 3);
+    reader.value("owner") >> flag.owner;
+    for (Direction i : cycle_directions_cw()) {
+      unsigned int val;
+      reader.value("has_path")[i] >> val;
+      flag.dirs[i].has_path = (val != 0);
+    }
   }
-  reader.value("endpoints") >> flag.endpoint;
   reader.value("transporter") >> flag.transporter;
+
+  if (reader.has_value("endpoints")) {
+    unsigned int val;
+    reader.value("endpoints") >> val;
+    for (Direction i : cycle_directions_cw()) {
+      flag.dirs[i].water_path = ((val & BIT(i)) != 0);
+    }
+    flag.has_resources = ((val & BIT(7)) != 0);
+  } else {
+    unsigned int val;
+    reader.value("has_resources") >> val;
+    flag.has_resources = (val != 0);
+  }
+
+  if (reader.has_value("building")) {
+    unsigned int val;
+    reader.value("building") >> val;
+    flag.building = flag.get_game()->create_building(val);
+  }
 
   for (Direction i : cycle_directions_cw()) {
     if (reader.has_value("free_transporters")) {
@@ -1143,6 +1177,7 @@ operator >> (SaveReaderText &reader, Flag &flag) {
       reader.value("free_transporters")[i] >> flag.dirs[i].free_transporters;
       unsigned int val;
       reader.value("serf_requested")[i] >> val;
+      reader.value("water_path")[i] >> val;
       flag.dirs[i].serf_requested = (val != 0);
     } else {
       int len;
@@ -1153,11 +1188,8 @@ operator >> (SaveReaderText &reader, Flag &flag) {
     }
     unsigned int obj_index;
     reader.value("other_endpoint")[i] >> obj_index;
-    if (flag.has_building() && (i == DirectionUpLeft)) {
-      flag.other_endpoint.b[DirectionUpLeft] =
-                                    flag.get_game()->create_building(obj_index);
-    } else {
-      Flag *other_flag = NULL;
+    if (!flag.has_building()) {
+      Flag *other_flag = nullptr;
       if (obj_index != 0) {
         other_flag = flag.get_game()->create_flag(obj_index);
       }
@@ -1205,15 +1237,19 @@ operator << (SaveWriterText &writer, Flag &flag) {
   writer.value("pos") << flag.game->get_map()->pos_row(flag.pos);
   writer.value("search_num") << flag.search_num;
   writer.value("search_dir") << flag.search_dir;
-  writer.value("path_con") << flag.path_con;
   writer.value("owner") << flag.owner;
-  writer.value("endpoints") << flag.endpoint;
+  writer.value("has_resources") << flag.has_resources;
+  if (flag.building != nullptr) {
+    writer.value("building") << flag.building->get_index();
+  }
   writer.value("transporter") << flag.transporter;
 
   for (Direction d : cycle_directions_cw()) {
     writer.value("length") << flag.dirs[d].lenght;
     writer.value("free_transporters") << flag.dirs[d].free_transporters;
     writer.value("serf_requested") << flag.dirs[d].serf_requested;
+    writer.value("has_path") << flag.dirs[d].has_path;
+    writer.value("water_path") << flag.dirs[d].water_path;
     if (d == DirectionUpLeft && flag.has_building()) {
       writer.value("other_endpoint") <<
         flag.other_endpoint.b[DirectionUpLeft]->get_index();
