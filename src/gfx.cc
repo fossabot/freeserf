@@ -497,7 +497,7 @@ Frame::Frame(Video *video_, unsigned int width, unsigned int height) {
   owner = true;
   Data &data = Data::get_instance();
   data_source = data.get_data_source();
-  font = new Font(video, video->create_font(10));
+  font = new Font(video, video->create_font(11));
 }
 
 Frame::Frame(Video *video_, Video::Frame *video_frame_) {
@@ -506,7 +506,7 @@ Frame::Frame(Video *video_, Video::Frame *video_frame_) {
   owner = false;
   Data &data = Data::get_instance();
   data_source = data.get_data_source();
-  font = new Font(video, video->create_font(10));
+  font = new Font(video, video->create_font(11));
 }
 
 void
@@ -514,7 +514,7 @@ Frame::init(Video *video_) {
   video = video_;
   Data &data = Data::get_instance();
   data_source = data.get_data_source();
-  font = new Font(video, video->create_font(10));
+  font = new Font(video, video->create_font(16));
 }
 
 /* Deinitialize frame and backing surface. */

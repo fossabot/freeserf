@@ -230,7 +230,7 @@ Video::Font *
 VideoSDL::create_font(size_t size) {
   Video::Font *font = new Video::Font();
   std::string font_file = SDL_GetBasePath();
-  font_file += "Exo2.0-Regular.ttf";
+  font_file += "Roboto-Bold.ttf";
   font->font = TTF_OpenFont(font_file.c_str(), (int)size);
   return font;
 }
