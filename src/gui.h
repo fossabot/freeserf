@@ -28,10 +28,13 @@
 #include "src/gfx.h"
 #include "src/event_loop.h"
 
+class GuiObject;
+typedef std::shared_ptr<GuiObject> PGuiObject;
+
 class GuiObject : public EventLoop::Handler,
                   public std::enable_shared_from_this<GuiObject> {
  private:
-  typedef std::list<std::shared_ptr<GuiObject>> FloatList;
+  typedef std::list<PGuiObject> FloatList;
   FloatList floats;
 
  protected:
@@ -53,11 +56,11 @@ class GuiObject : public EventLoop::Handler,
     return false; }
   virtual bool handle_drag(int dx, int dy) { return true; }
   virtual bool handle_key_pressed(char key, int modifier) { return false; }
-  virtual void on_float_closed(std::shared_ptr<GuiObject> obj) {}
+  virtual void on_float_closed(PGuiObject obj) {}
 
   void delete_frame();
 
-  void close_float(std::shared_ptr<GuiObject> obj);
+  void close_float(PGuiObject obj);
 
  public:
   GuiObject();
@@ -72,14 +75,14 @@ class GuiObject : public EventLoop::Handler,
   void set_enabled(bool enabled);
   void set_redraw();
   bool is_displayed() { return displayed; }
-  std::shared_ptr<GuiObject> get_parent() { return parent.lock(); }
-  virtual void set_parent(std::shared_ptr<GuiObject> _parent) {
+  PGuiObject get_parent() { return parent.lock(); }
+  virtual void set_parent(PGuiObject _parent) {
     parent = _parent;
   }
   bool point_inside(int point_x, int point_y);
 
-  void add_float(std::shared_ptr<GuiObject> obj, int x, int y);
-  void del_float(std::shared_ptr<GuiObject> obj);
+  void add_float(PGuiObject obj, int x, int y);
+  void del_float(PGuiObject obj);
   void close();
 
   virtual bool handle_event(const Event *event);

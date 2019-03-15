@@ -202,4 +202,6 @@ class Interface : public GuiObject, public GameManager::Handler {
   virtual void on_end_game(PGame game);
 };
 
+typedef std::shared_ptr<Interface> PInterface;
+
 #endif  // SRC_INTERFACE_H_

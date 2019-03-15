@@ -28,7 +28,7 @@ ListSavedFiles::ListSavedFiles(unsigned int _width, unsigned int _height)
   color_text = Color::green;
   color_background = Color::black;
 
-  items = save_game->get_saved_games();
+  items = save_game.get_saved_games();
   first_visible_item = 0;
   selected_item = -1;
 }

@@ -23,6 +23,7 @@
 
 #include <sstream>
 #include <memory>
+#include <cassert>
 
 #include "src/interface.h"
 #include "src/game.h"

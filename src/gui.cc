@@ -62,7 +62,7 @@ GuiObject::delete_frame() {
 }
 
 void
-GuiObject::close_float(std::shared_ptr<GuiObject> obj) {
+GuiObject::close_float(PGuiObject obj) {
   EventLoop &event_loop = EventLoop::get_instance();
   event_loop.deferred_call([this, obj](void*){
     floats.remove(obj);
@@ -88,7 +88,7 @@ GuiObject::draw(Frame *_frame) {
   if (redraw) {
     internal_draw();
 
-    for (std::shared_ptr<GuiObject> float_window : floats) {
+    for (PGuiObject float_window : floats) {
       float_window->draw(frame);
     }
 
@@ -217,7 +217,7 @@ GuiObject::point_inside(int point_x, int point_y) {
 }
 
 void
-GuiObject::add_float(std::shared_ptr<GuiObject> obj, int fx, int fy) {
+GuiObject::add_float(PGuiObject obj, int fx, int fy) {
   obj->move_to(fx, fy);
   obj->set_parent(shared_from_this());
   floats.push_back(obj);
@@ -225,7 +225,7 @@ GuiObject::add_float(std::shared_ptr<GuiObject> obj, int fx, int fy) {
 }
 
 void
-GuiObject::del_float(std::shared_ptr<GuiObject> obj) {
+GuiObject::del_float(PGuiObject obj) {
   obj->set_parent(nullptr);
   floats.remove(obj);
   set_redraw();
